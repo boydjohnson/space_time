@@ -1,4 +1,6 @@
 #![no_std]
+#![feature(const_int_pow)]
+#![feature(const_fn)]
 #![deny(missing_docs)]
 
 //! Port of https://github.com/locationtech/sfcurve scala space-filling curve library.
@@ -6,6 +8,7 @@
 //! Useful for representing and querying spatial objects
 
 pub mod index_range;
+pub mod zorder;
 
 use index_range::IndexRange;
 
