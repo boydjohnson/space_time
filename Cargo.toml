@@ -1,4 +1,5 @@
 [workspace]
 members = [
-	"geomesa-z3"
+	"geomesa-z3",
+	"sfcurve",
 	]
