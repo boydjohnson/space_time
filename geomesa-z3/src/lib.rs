@@ -1,9 +1,10 @@
 #![no_std]
 #![feature(trait_alias)]
 #![deny(missing_docs)]
-//! Library for representing geometric shapes as strings using space filling curves.
+//! Port of the scala-based geomesa-z3 library(http://github.com/locationtech/geomesa)
 
 pub mod binned_time;
+pub mod normalized_dimension;
 
 #[cfg(test)]
 extern crate quickcheck;
