@@ -52,6 +52,8 @@ const DAYS_IN_MONTH: i64 = 31;
 
 const WEEKS_IN_YEAR: i64 = 52;
 
+const EPOCH: OffsetDateTime = OffsetDateTime::unix_epoch();
+
 /// The number of `TimePeriod` bins in the `BinnedTime`.
 pub type BinIndex = i64;
 
@@ -64,7 +66,7 @@ pub struct BinnedTime {
 }
 
 impl BinnedTime {
-    /// Returns a function that creates a `BinnedTime` struct.
+    /// Returns a `BinnedTime` struct representing the milliseconds since Unix Epoch, millis.
     #[must_use]
     pub fn from_millis(period: TimePeriod, millis: i64) -> BinnedTime {
         match period {
@@ -75,9 +77,71 @@ impl BinnedTime {
         }
     }
 
+    /// Returns a `BinnedTime` struct representing the `TimePeriods` since Unix Epoch.
+    #[must_use]
+    pub fn from_datetime(period: TimePeriod, datetime: OffsetDateTime) -> BinnedTime {
+        match period {
+            TimePeriod::Day => Self::millis_to_day_and_millis_(datetime - EPOCH),
+            TimePeriod::Week => Self::millis_to_week_and_seconds_(datetime - EPOCH),
+            TimePeriod::Month => Self::millis_to_month_and_seconds_(datetime - EPOCH),
+            TimePeriod::Year => Self::millis_to_year_and_minutes_(datetime - EPOCH),
+        }
+    }
+
     /// Number of `TimePeriod` bins that the time in millis represents.
+    #[must_use]
     pub fn millis_to_bin_index(period: TimePeriod, millis: i64) -> BinIndex {
-        Self::from_millis(period, millis).bin
+        match period {
+            TimePeriod::Day => Duration::milliseconds(millis).whole_days(),
+            TimePeriod::Week => Duration::milliseconds(millis).whole_weeks(),
+            TimePeriod::Month => Duration::milliseconds(millis).whole_days() / DAYS_IN_MONTH as i64,
+            TimePeriod::Year => Duration::milliseconds(millis).whole_weeks() / WEEKS_IN_YEAR as i64,
+        }
+    }
+
+    /// Number of whole `TimePeriod` bins in the datetime.
+    #[must_use]
+    pub fn datetime_to_bin_index(period: TimePeriod, datetime: OffsetDateTime) -> BinIndex {
+        match period {
+            TimePeriod::Day => (datetime - EPOCH).whole_days(),
+            TimePeriod::Week => (datetime - EPOCH).whole_weeks(),
+            TimePeriod::Month => (datetime - EPOCH).whole_days() / DAYS_IN_MONTH as i64,
+            TimePeriod::Year => (datetime - EPOCH).whole_weeks() / WEEKS_IN_YEAR as i64,
+        }
+    }
+
+    /// Return a function that filters datetimes to be representable by a BinnedTime.
+    pub fn bounds_to_indexable_dates(
+        period: TimePeriod,
+    ) -> impl Fn((Option<OffsetDateTime>, Option<OffsetDateTime>)) -> (OffsetDateTime, OffsetDateTime)
+    {
+        let max_date = Self::max_date(period) - Duration::milliseconds(1);
+
+        move |(low, high)| {
+            let low = match low {
+                None => EPOCH,
+                Some(dt) if dt < EPOCH => EPOCH,
+                Some(dt) if dt > max_date => max_date,
+                Some(dt) => dt,
+            };
+
+            let high = match high {
+                None => Self::max_date(period),
+                Some(dt) if dt < EPOCH => EPOCH,
+                Some(dt) if dt > max_date => max_date,
+                Some(dt) => dt,
+            };
+            (low, high)
+        }
+    }
+
+    /// The maximum date representable by the BinnedTime of a particular TimePeriod.
+    pub fn max_date(period: TimePeriod) -> OffsetDateTime {
+        match period {
+            TimePeriod::Day | TimePeriod::Week | TimePeriod::Month | TimePeriod::Year => {
+                EPOCH + Duration::max_value()
+            }
+        }
     }
 
     fn millis_to_week_and_seconds(time: i64) -> BinnedTime {
@@ -143,6 +207,7 @@ impl BinnedTime {
 }
 
 /// The period of time in a bin.
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum TimePeriod {
     /// A TimePeriod of One day increments.
     Day,
