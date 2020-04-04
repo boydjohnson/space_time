@@ -42,12 +42,6 @@
 
 use time::{Duration, OffsetDateTime};
 
-trait BinnedTimeToDate = Fn(BinnedTime) -> OffsetDateTime;
-trait TimeToBinnedTime = Fn(i64) -> BinnedTime;
-trait DateToBinnedTime = Fn(OffsetDateTime) -> BinnedTime;
-trait TimeToBin = Fn(i64) -> i16;
-trait DateToBin = Fn(OffsetDateTime) -> i16;
-
 const DAYS_IN_MONTH: i64 = 31;
 
 const WEEKS_IN_YEAR: i64 = 52;
