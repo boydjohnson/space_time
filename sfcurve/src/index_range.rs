@@ -5,7 +5,7 @@
 use core::cmp::{Ord, Ordering};
 
 /// Sortable Range trait.
-pub trait IndexRange {
+pub trait IndexRange: core::fmt::Debug {
     /// The lower index.
     fn lower(&self) -> i64;
 
@@ -25,6 +25,34 @@ pub trait IndexRange {
     }
 }
 
+impl Ord for dyn IndexRange {
+    fn cmp(&self, other: &Self) -> Ordering {
+        let l_cmp = self.lower().cmp(&other.lower());
+        if l_cmp != Ordering::Equal {
+            return l_cmp;
+        }
+        let u_cmp = self.upper().cmp(&other.upper());
+        if u_cmp != Ordering::Equal {
+            return u_cmp;
+        }
+        Ordering::Equal
+    }
+}
+
+impl PartialOrd for dyn IndexRange {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for dyn IndexRange {
+    fn eq(&self, other: &Self) -> bool {
+        self.lower() == other.lower() && self.upper() == other.upper()
+    }
+}
+
+impl Eq for dyn IndexRange {}
+
 ///
 #[derive(Debug, PartialEq, Eq)]
 pub struct CoveredRange {
@@ -32,27 +60,10 @@ pub struct CoveredRange {
     lower: i64,
 }
 
-fn cmp<T: IndexRange>(first: &T, other: &T) -> Ordering {
-    let l_cmp = first.lower().cmp(&other.lower());
-    if l_cmp != Ordering::Equal {
-        return l_cmp;
-    }
-    let u_cmp = first.upper().cmp(&other.upper());
-    if u_cmp != Ordering::Equal {
-        return u_cmp;
-    }
-    Ordering::Equal
-}
-
-impl Ord for CoveredRange {
-    fn cmp(&self, other: &Self) -> Ordering {
-        cmp(self, &other)
-    }
-}
-
-impl PartialOrd for CoveredRange {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
+impl CoveredRange {
+    /// Constructor.
+    pub fn new(lower: i64, upper: i64) -> Self {
+        CoveredRange { lower, upper }
     }
 }
 
@@ -77,6 +88,13 @@ pub struct OverlappingRange {
     lower: i64,
 }
 
+impl OverlappingRange {
+    /// Constructor.
+    pub fn new(lower: i64, upper: i64) -> Self {
+        OverlappingRange { lower, upper }
+    }
+}
+
 impl IndexRange for OverlappingRange {
     fn upper(&self) -> i64 {
         self.upper
@@ -88,17 +106,5 @@ impl IndexRange for OverlappingRange {
 
     fn contained(&self) -> bool {
         false
-    }
-}
-
-impl Ord for OverlappingRange {
-    fn cmp(&self, other: &Self) -> Ordering {
-        cmp(self, &other)
-    }
-}
-
-impl PartialOrd for OverlappingRange {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
     }
 }
