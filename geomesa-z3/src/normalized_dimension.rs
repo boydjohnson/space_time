@@ -1,12 +1,12 @@
-//! Normalizes an `f64` in the range from [MIN to MAX] to [0 to MAX_INDEX]
+//! Normalizes an `f64` in the range from [MIN to MAX] to [0 to `MAX_INDEX`]
 //!
-//! LatNormalizer normalizes latitudes. [-90.0, 90].
-//! LonNormalizer normalizes longitudes. [-180, 180].
-//! TimeNormalizer normalizes floats in [0.0, MAX].
+//! `LatNormalizer` normalizes latitudes. [-90.0, 90].
+//! `LonNormalizer` normalizes longitudes. [-180, 180].
+//! `TimeNormalizer` normalizes floats in [0.0, MAX].
 
 use core::convert::TryInto;
 
-/// Maps a `f64` to an i32 <= MAX_INDEX.
+/// Maps a `f64` to an i32 <= `MAX_INDEX`.
 pub trait NormalizedDimension {
     /// The minimum input.
     fn min(&self) -> f64;
@@ -17,7 +17,7 @@ pub trait NormalizedDimension {
     /// The maximum output value.
     fn max_index(&self) -> i32;
 
-    /// Normalize input `f64` into range [0, MAX_INDEX].
+    /// Normalize input `f64` into range [0, `MAX_INDEX`].
     fn normalize(&self, x: f64) -> i32;
 
     /// Reverse of normalize.
@@ -79,9 +79,9 @@ impl NormalizedDimension for dyn BitNormalizedDimension {
 
     fn denormalize(&self, y: i32) -> f64 {
         if y >= self.max_index() {
-            self.min() + (self.max_index() as f64 + 0.5) * self.denormalizer() as f64
+            self.min() + (f64::from(self.max_index()) + 0.5) * self.denormalizer() as f64
         } else {
-            self.min() + (y as f64 + 0.5) * self.denormalizer() as f64
+            self.min() + (f64::from(y) + 0.5) * self.denormalizer() as f64
         }
     }
 }
@@ -96,7 +96,7 @@ pub fn denormalize<T: BitNormalizedDimension + 'static>(normalizer: &T, y: i32) 
     <dyn BitNormalizedDimension as NormalizedDimension>::denormalize(normalizer, y)
 }
 
-/// A NormalizedDimension for Latitudes.
+/// A `NormalizedDimension` for Latitudes.
 #[derive(Debug, PartialEq)]
 pub struct LatNormalizer {
     precision: u8,
@@ -104,6 +104,7 @@ pub struct LatNormalizer {
 
 impl LatNormalizer {
     /// Constructor panics if precision is too high (> 31) or 0.
+    #[must_use]
     pub fn new(precision: u8) -> Self {
         assert!(precision > 0);
         assert!(precision <= 31);
@@ -111,7 +112,7 @@ impl LatNormalizer {
     }
 }
 
-/// A NormalizedDimension for Longitudes.
+/// A `NormalizedDimension` for Longitudes.
 #[derive(Debug, PartialEq)]
 pub struct LonNormalizer {
     precision: u8,
@@ -119,6 +120,7 @@ pub struct LonNormalizer {
 
 impl LonNormalizer {
     /// Constructor panics if precision is too high (> 31) or 0.
+    #[must_use]
     pub fn new(precision: u8) -> Self {
         assert!(precision > 0);
         assert!(precision <= 31);
@@ -126,7 +128,7 @@ impl LonNormalizer {
     }
 }
 
-/// A NormalizedDimension for time.
+/// A `NormalizedDimension` for time.
 #[derive(Debug, PartialEq)]
 pub struct TimeNormalizer {
     precision: u8,
@@ -135,6 +137,7 @@ pub struct TimeNormalizer {
 
 impl TimeNormalizer {
     /// Constructor returns None if precision is too high or 0.
+    #[must_use]
     pub fn new(precision: u8, max: f64) -> Self {
         assert!(precision > 0);
         assert!(precision <= 31);

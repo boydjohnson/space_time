@@ -1,24 +1,24 @@
-//! Types for binning time into Day/milli-offset, Week/second-offset, Month/seconds-offset,
-//! Year/minutes-offset bins, `BinnedTime`.
+//! Types for binning time into Day/milli-offset, Week/second-offset,
+//! Month/seconds-offset, Year/minutes-offset bins, `BinnedTime`.
 //!
 //!
 //! Construct a number of milliseconds as a number of days and milliseconds.
 //! ```
-//!  use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
+//! use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
 //!
-//!  let bin = BinnedTime::from_millis(TimePeriod::Day, 90_000_000);
+//! let bin = BinnedTime::from_millis(TimePeriod::Day, 90_000_000);
 //!
-//!  assert_eq!(bin.bin, 1);
-//!  assert_eq!(bin.offset, TimeUnits::Milliseconds(3_600_000));
+//! assert_eq!(bin.bin, 1);
+//! assert_eq!(bin.offset, TimeUnits::Milliseconds(3_600_000));
 //! ```
 //! Construct a number of milliseconds as a number of weeks and seconds.
 //! ```
-//!  use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
+//! use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
 //!
-//!  let bin = BinnedTime::from_millis(TimePeriod::Week, 1_512_000_000);
+//! let bin = BinnedTime::from_millis(TimePeriod::Week, 1_512_000_000);
 //!
-//!  assert_eq!(bin.bin, 2);
-//!  assert_eq!(bin.offset, TimeUnits::Seconds(302_400));
+//! assert_eq!(bin.bin, 2);
+//! assert_eq!(bin.offset, TimeUnits::Seconds(302_400));
 //! ```
 //!
 //! Construct a number of milliseconds as a number of months and seconds.
@@ -51,16 +51,19 @@ const EPOCH: OffsetDateTime = OffsetDateTime::unix_epoch();
 /// The number of `TimePeriod` bins in the `BinnedTime`.
 pub type BinIndex = i64;
 
-/// Representation of a datetime as a number of `TimePeriod` bins and an offset from the last bin.
+/// Representation of a datetime as a number of `TimePeriod` bins and an offset from the
+/// last bin.
 pub struct BinnedTime {
     /// Number of `TimePeriods` since unix epoch.
     pub bin: BinIndex,
-    /// Number of milliseconds, seconds, minutes (depending on `TimePeriod`) since unix epoch.
+    /// Number of milliseconds, seconds, minutes (depending on `TimePeriod`) since unix
+    /// epoch.
     pub offset: TimeUnits,
 }
 
 impl BinnedTime {
-    /// Returns a `BinnedTime` struct representing the milliseconds since Unix Epoch, millis.
+    /// Returns a `BinnedTime` struct representing the milliseconds since Unix Epoch,
+    /// millis.
     #[must_use]
     pub fn from_millis(period: TimePeriod, millis: i64) -> BinnedTime {
         match period {
@@ -104,7 +107,7 @@ impl BinnedTime {
         }
     }
 
-    /// Return a function that filters datetimes to be representable by a BinnedTime.
+    /// Return a function that filters datetimes to be representable by a `BinnedTime`.
     pub fn bounds_to_indexable_dates(
         period: TimePeriod,
     ) -> impl Fn((Option<OffsetDateTime>, Option<OffsetDateTime>)) -> (OffsetDateTime, OffsetDateTime)
@@ -129,7 +132,8 @@ impl BinnedTime {
         }
     }
 
-    /// The maximum date representable by the BinnedTime of a particular TimePeriod.
+    /// The maximum date representable by the `BinnedTime` of a particular `TimePeriod`.
+    #[must_use]
     pub fn max_date(period: TimePeriod) -> OffsetDateTime {
         match period {
             TimePeriod::Day | TimePeriod::Week | TimePeriod::Month | TimePeriod::Year => {
@@ -149,7 +153,7 @@ impl BinnedTime {
 
         BinnedTime {
             bin: weeks,
-            offset: TimeUnits::Seconds(duration.whole_seconds() as i128),
+            offset: TimeUnits::Seconds(i128::from(duration.whole_seconds())),
         }
     }
 
@@ -178,7 +182,7 @@ impl BinnedTime {
         duration -= just_the_months;
         BinnedTime {
             bin: months,
-            offset: TimeUnits::Seconds(duration.whole_seconds() as i128),
+            offset: TimeUnits::Seconds(i128::from(duration.whole_seconds())),
         }
     }
 
@@ -195,7 +199,7 @@ impl BinnedTime {
 
         BinnedTime {
             bin: years,
-            offset: TimeUnits::Minutes(duration.whole_minutes() as i128),
+            offset: TimeUnits::Minutes(i128::from(duration.whole_minutes())),
         }
     }
 }

@@ -1,7 +1,7 @@
 #![no_std]
 #![feature(trait_alias)]
 #![deny(missing_docs)]
-//! Port of the scala-based geomesa-z3 library(http://github.com/locationtech/geomesa)
+//! Partial port of the scala-based geomesa-z3 library [geomesa](http://github.com/locationtech/geomesa)
 
 pub mod binned_time;
 pub mod normalized_dimension;
