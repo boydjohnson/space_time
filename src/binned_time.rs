@@ -4,7 +4,7 @@
 //!
 //! Construct a number of milliseconds as a number of days and milliseconds.
 //! ```
-//! use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
+//! use space_time::binned_time::{BinnedTime, TimePeriod, TimeUnits};
 //!
 //! let bin = BinnedTime::from_millis(TimePeriod::Day, 90_000_000);
 //!
@@ -13,7 +13,7 @@
 //! ```
 //! Construct a number of milliseconds as a number of weeks and seconds.
 //! ```
-//! use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
+//! use space_time::binned_time::{BinnedTime, TimePeriod, TimeUnits};
 //!
 //! let bin = BinnedTime::from_millis(TimePeriod::Week, 1_512_000_000);
 //!
@@ -23,7 +23,7 @@
 //!
 //! Construct a number of milliseconds as a number of months and seconds.
 //! ```
-//! use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
+//! use space_time::binned_time::{BinnedTime, TimePeriod, TimeUnits};
 //!
 //! let bin = BinnedTime::from_millis(TimePeriod::Month, 17_366_400_000);
 //!
@@ -32,7 +32,7 @@
 //! ```
 //! Construct a number of milliseconds as a number of years and minutes.
 //! ```
-//! use geomesa_z3::binned_time::{BinnedTime, TimePeriod, TimeUnits};
+//! use space_time::binned_time::{BinnedTime, TimePeriod, TimeUnits};
 //!
 //! let bin = BinnedTime::from_millis(TimePeriod::Year, 1_586_260_800_000);
 //!

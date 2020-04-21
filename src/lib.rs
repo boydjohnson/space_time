@@ -1,20 +1,26 @@
 #![no_std]
+#![feature(trait_alias)]
 #![feature(const_int_pow)]
 #![feature(const_fn)]
 #![deny(missing_docs)]
-
-//! Port of https://github.com/locationtech/sfcurve scala space-filling curve library.
+//! Partial port of the scala-based geomesa-z3 library [geomesa](http://github.com/locationtech/geomesa)
+//! Partial port of [sfcurve](https://github.com/locationtech/sfcurve) scala space-filling curve library.
 //!
 //! Useful for representing and querying spatial objects
+
+pub mod binned_time;
+pub mod index_range;
+pub mod normalized_dimension;
+pub mod zorder;
+
+#[cfg(test)]
+extern crate quickcheck;
 
 #[cfg(test)]
 #[macro_use]
 extern crate quickcheck_macros;
 
 extern crate alloc;
-
-pub mod index_range;
-pub mod zorder;
 
 use alloc::{boxed::Box, vec::Vec};
 use index_range::IndexRange;

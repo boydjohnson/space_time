@@ -1,6 +1,6 @@
 #![feature(test)]
 
-use sfcurve::{Curve, RangeComputeHints, SpaceFillingCurve2D, SpaceFillingCurves};
+use space_time::{Curve, RangeComputeHints, SpaceFillingCurve2D, SpaceFillingCurves};
 
 extern crate test;
 
