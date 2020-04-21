@@ -42,15 +42,17 @@ pub trait ZN {
     fn contains(range: ZRange, value: i64) -> bool;
 
     /// Test whether range contains the value. Considers User space.
+    #[must_use]
     fn contains_value(range: ZRange, value: ZRange) -> bool {
         Self::contains(range, value.min) && Self::contains(range, value.max)
     }
 
     /// Test whether range and value overlap. Considers User space.
+    #[must_use]
     fn overlaps(range: ZRange, value: ZRange) -> bool;
 
     /// Compute the Z-index ranges that cover zbounds (Default values: precision = 64,
-    /// max_recurse = 7, max_ranges = usize::max_value()).
+    /// `max_recurse` = 7, `max_ranges` = `usize::max_value()`).
     #[must_use]
     fn zranges_default<Z: ZN>(zbounds: &[ZRange]) -> Vec<Box<dyn IndexRange>> {
         Self::zranges::<Z>(zbounds, 64, Some(usize::max_value()), Some(DEFAULT_RECURSE))
@@ -145,10 +147,10 @@ pub trait ZN {
         // All ranges found. Now reduce them by merging overlapping values.
         ranges.sort();
 
-        let mut current = if !ranges.is_empty() {
-            Some(ranges.remove(0))
-        } else {
+        let mut current = if ranges.is_empty() {
             None
+        } else {
+            Some(ranges.remove(0))
         };
         let mut results = Vec::new();
 
@@ -180,6 +182,7 @@ pub trait ZN {
     ///
     /// # NOTE:
     ///   panics if `values.len() == 0`
+    #[must_use]
     fn longest_common_prefix(values: &[i64]) -> ZPrefix {
         assert!(!values.is_empty());
 

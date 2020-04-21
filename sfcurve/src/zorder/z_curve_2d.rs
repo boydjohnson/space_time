@@ -13,9 +13,7 @@ pub struct ZCurve2D {
 impl ZCurve2D {
     /// Constructor.
     pub fn new(resolution: i32) -> Self {
-        ZCurve2D {
-            resolution: resolution,
-        }
+        ZCurve2D { resolution }
     }
 
     fn cell_width(&self) -> f64 {
