@@ -3,10 +3,25 @@
 #![feature(const_int_pow)]
 #![feature(const_fn)]
 #![deny(missing_docs)]
-//! Partial port of the scala-based geomesa-z3 library [geomesa](http://github.com/locationtech/geomesa)
+//! Partial port of the scala-based geomesa-z3 library from [geomesa](http://github.com/locationtech/geomesa)
 //! Partial port of [sfcurve](https://github.com/locationtech/sfcurve) scala space-filling curve library.
 //!
 //! Useful for representing and querying spatial objects
+//!
+//! Z2 curve is used for two dimensional point indexing and can be accessed through
+//! the SpaceFillingCurves factory and SpaceFillingCurve2D trait.
+//! ```
+//! use space_time::SpaceFillingCurves;
+//!
+//! let curve = SpaceFillingCurves::get_point_curve(1024);
+//! let indexed_point = curve.index(2.3522, 48.8566);
+//! let range_of_index = curve.ranges(2.35, 48.85, 2.354, 48.857, &[]);
+//!
+//! assert!(range_of_index
+//!     .iter()
+//!     .any(|r| r.lower() <= indexed_point && r.upper() >= indexed_point));
+//! ```
+//! Z3 curve is used for two dimensional point and time indexing.
 
 pub mod binned_time;
 pub mod index_range;
@@ -22,50 +37,17 @@ extern crate quickcheck_macros;
 
 extern crate alloc;
 
-use alloc::{boxed::Box, vec::Vec};
-use index_range::IndexRange;
 use zorder::z_curve_2d::ZCurve2D;
 
 /// Factory providing space filling curves
 pub struct SpaceFillingCurves;
 
 impl SpaceFillingCurves {
-    /// Return a `SpaceFillingCurve` type curve with a resolution.
+    /// Return point indexing curve with a resolution.
     #[must_use]
-    pub fn get_curve(curve: Curve, resolution: i32) -> impl SpaceFillingCurve2D {
-        match curve {
-            Curve::ZOrder => ZCurve2D::new(resolution),
-            Curve::Hilbert => unimplemented!(),
-        }
+    pub fn get_point_curve(resolution: i32) -> ZCurve2D {
+        ZCurve2D::new(resolution)
     }
-}
-
-/// The types of space-filling curves provided by the library.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub enum Curve {
-    /// Z-Order curve.
-    ZOrder,
-    /// Hilbert curve.
-    Hilbert,
-}
-
-/// Trait for all space-filling curves.
-pub trait SpaceFillingCurve2D {
-    /// Return the index of a point.
-    fn index(&self, x: f64, y: f64) -> i64;
-
-    /// Return a point from an index.
-    fn point(&self, index: i64) -> (f64, f64);
-
-    /// Return an array-slice of `IndexRange`s.
-    fn ranges(
-        &self,
-        x_min: f64,
-        y_min: f64,
-        x_max: f64,
-        y_max: f64,
-        hints: &[RangeComputeHints],
-    ) -> Vec<Box<dyn IndexRange>>;
 }
 
 /// Hints to the `range` function implementation for `SpacefillingCurve2D`s.

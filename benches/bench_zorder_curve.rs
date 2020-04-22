@@ -1,6 +1,6 @@
 #![feature(test)]
 
-use space_time::{Curve, RangeComputeHints, SpaceFillingCurve2D, SpaceFillingCurves};
+use space_time::{RangeComputeHints, SpaceFillingCurves};
 
 extern crate test;
 
@@ -8,7 +8,7 @@ use test::Bencher;
 
 #[bench]
 fn test_space_filling_curve_2d_zorder_city_size(b: &mut Bencher) {
-    let curve = SpaceFillingCurves::get_curve(Curve::ZOrder, 1024);
+    let curve = SpaceFillingCurves::get_point_curve(1024);
     let x_min = -174.45869;
     let x_max = -174.12485;
     let y_min = 56.345605;
@@ -27,7 +27,7 @@ fn test_space_filling_curve_2d_zorder_city_size(b: &mut Bencher) {
 
 #[bench]
 fn test_space_filling_curve_2d_zorder_state_size(b: &mut Bencher) {
-    let curve = SpaceFillingCurves::get_curve(Curve::ZOrder, 1024);
+    let curve = SpaceFillingCurves::get_point_curve(1024);
     let x_min = -93.245;
     let x_max = -88.24849;
     let y_min = 42.01485;
@@ -46,7 +46,7 @@ fn test_space_filling_curve_2d_zorder_state_size(b: &mut Bencher) {
 
 #[bench]
 fn test_space_filling_curve_2d_zorder_country_size(b: &mut Bencher) {
-    let curve = SpaceFillingCurves::get_curve(Curve::ZOrder, 1024);
+    let curve = SpaceFillingCurves::get_point_curve(1024);
     let x_min = 53.4588044297;
     let x_max = 135.026311477;
     let y_min = 18.197700914;
