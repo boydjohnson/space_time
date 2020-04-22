@@ -25,7 +25,7 @@ pub trait NormalizedDimension {
 }
 
 /// A Range of doubles from `min` to `max`.
-pub trait Range {
+trait Range {
     /// The min of the range.
     fn min(&self) -> f64;
 
@@ -34,7 +34,7 @@ pub trait Range {
 }
 
 /// A helper trait to normalize a range of `f64`s to `i32` given a precision.
-pub trait BitNormalizedDimension: Range {
+trait BitNormalizedDimension: Range {
     /// The precision of the normalizer.
     fn precision(&self) -> u8;
 
@@ -87,13 +87,17 @@ impl NormalizedDimension for dyn BitNormalizedDimension {
 }
 
 /// Normalize an input with a `BitNormalizedDimension` normalizer.
-pub fn normalize<T: BitNormalizedDimension + 'static>(normalizer: &T, x: f64) -> i32 {
+fn normalize<T: BitNormalizedDimension + 'static>(normalizer: &T, x: f64) -> i32 {
     <dyn BitNormalizedDimension as NormalizedDimension>::normalize(normalizer, x)
 }
 
 /// Denormalize an input with a `BitNormalizedDimension` denormalizer.
-pub fn denormalize<T: BitNormalizedDimension + 'static>(normalizer: &T, y: i32) -> f64 {
+fn denormalize<T: BitNormalizedDimension + 'static>(normalizer: &T, y: i32) -> f64 {
     <dyn BitNormalizedDimension as NormalizedDimension>::denormalize(normalizer, y)
+}
+
+fn max_index<T: BitNormalizedDimension + 'static>(normalizer: &T) -> i32 {
+    <dyn BitNormalizedDimension as NormalizedDimension>::max_index(normalizer)
 }
 
 /// A `NormalizedDimension` for Latitudes.
@@ -193,18 +197,84 @@ impl BitNormalizedDimension for TimeNormalizer {
     }
 }
 
+impl NormalizedDimension for LatNormalizer {
+    fn min(&self) -> f64 {
+        <Self as Range>::min(&self)
+    }
+
+    fn max(&self) -> f64 {
+        <Self as Range>::max(&self)
+    }
+
+    fn max_index(&self) -> i32 {
+        max_index(self)
+    }
+
+    fn normalize(&self, x: f64) -> i32 {
+        normalize(self, x)
+    }
+
+    fn denormalize(&self, y: i32) -> f64 {
+        denormalize(self, y)
+    }
+}
+
+impl NormalizedDimension for LonNormalizer {
+    fn min(&self) -> f64 {
+        <Self as Range>::min(&self)
+    }
+
+    fn max(&self) -> f64 {
+        <Self as Range>::max(&self)
+    }
+
+    fn max_index(&self) -> i32 {
+        max_index(self)
+    }
+
+    fn normalize(&self, x: f64) -> i32 {
+        normalize(self, x)
+    }
+
+    fn denormalize(&self, y: i32) -> f64 {
+        denormalize(self, y)
+    }
+}
+
+impl NormalizedDimension for TimeNormalizer {
+    fn min(&self) -> f64 {
+        <Self as Range>::min(&self)
+    }
+
+    fn max(&self) -> f64 {
+        <Self as Range>::max(&self)
+    }
+
+    fn max_index(&self) -> i32 {
+        max_index(self)
+    }
+
+    fn normalize(&self, x: f64) -> i32 {
+        normalize(self, x)
+    }
+
+    fn denormalize(&self, y: i32) -> f64 {
+        denormalize(self, y)
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
-    use super::*;
+    use super::{LatNormalizer, LonNormalizer, NormalizedDimension};
 
     #[test]
     fn test_normalize_round_trip_minimum() {
         let norm_lat = LatNormalizer::new(31);
         let norm_lon = LonNormalizer::new(31);
 
-        assert_eq!(normalize(&norm_lat, denormalize(&norm_lat, 0)), 0);
-        assert_eq!(normalize(&norm_lon, denormalize(&norm_lon, 0)), 0);
+        assert_eq!(norm_lat.normalize(norm_lat.denormalize(0)), 0);
+        assert_eq!(norm_lon.normalize(norm_lon.denormalize(0)), 0);
     }
 
     #[test]
@@ -212,14 +282,8 @@ mod tests {
         let norm_lat = LatNormalizer::new(31);
         let norm_lon = LonNormalizer::new(31);
         let max_bin = (2_i64.pow(31) - 1) as i32;
-        assert_eq!(
-            normalize(&norm_lat, denormalize(&norm_lat, max_bin)),
-            max_bin
-        );
-        assert_eq!(
-            normalize(&norm_lon, denormalize(&norm_lon, max_bin)),
-            max_bin
-        );
+        assert_eq!(norm_lat.normalize(norm_lat.denormalize(max_bin)), max_bin);
+        assert_eq!(norm_lon.normalize(norm_lon.denormalize(max_bin)), max_bin);
     }
 
     #[test]
@@ -227,8 +291,8 @@ mod tests {
         let norm_lat = LatNormalizer::new(31);
         let norm_lon = LonNormalizer::new(31);
 
-        assert_eq!(normalize(&norm_lat, norm_lat.min()), 0);
-        assert_eq!(normalize(&norm_lon, norm_lon.min()), 0)
+        assert_eq!(norm_lat.normalize(norm_lat.min()), 0);
+        assert_eq!(norm_lon.normalize(norm_lon.min()), 0)
     }
 
     #[test]
@@ -237,8 +301,8 @@ mod tests {
         let norm_lon = LonNormalizer::new(31);
         let max_bin = (2_i64.pow(31) - 1) as i32;
 
-        assert_eq!(normalize(&norm_lat, norm_lat.max()), max_bin);
-        assert_eq!(normalize(&norm_lon, norm_lon.max()), max_bin);
+        assert_eq!(norm_lat.normalize(norm_lat.max()), max_bin);
+        assert_eq!(norm_lon.normalize(norm_lon.max()), max_bin);
     }
 
     #[test]
@@ -252,15 +316,15 @@ mod tests {
         let lat_width = lat_extent / (max_bin as f64 + 1_f64);
         let lon_width = lon_extent / (max_bin as f64 + 1_f64);
 
-        assert_eq!(denormalize(&norm_lat, 0), norm_lat.min() + lat_width / 2.0);
+        assert_eq!(norm_lat.denormalize(0), norm_lat.min() + lat_width / 2.0);
         assert_eq!(
-            denormalize(&norm_lat, max_bin),
+            norm_lat.denormalize(max_bin),
             norm_lat.max() - lat_width / 2.0
         );
 
-        assert_eq!(denormalize(&norm_lon, 0), norm_lon.min() + lon_width / 2.0);
+        assert_eq!(norm_lon.denormalize(0), norm_lon.min() + lon_width / 2.0);
         assert_eq!(
-            denormalize(&norm_lon, max_bin),
+            norm_lon.denormalize(max_bin),
             norm_lon.max() - lon_width / 2.0
         );
     }
