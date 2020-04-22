@@ -2,7 +2,7 @@
 
 use crate::index_range::IndexRange;
 use crate::zorder::{z_2::Z2, z_n::ZN, z_range::ZRange};
-use crate::{RangeComputeHints, SpaceFillingCurve2D};
+use crate::RangeComputeHints;
 use alloc::{boxed::Box, vec::Vec};
 
 /// 2-Dimensional `ZCurve`, with x as longitude and y as latitude.
@@ -11,6 +11,17 @@ pub struct ZCurve2D {
 }
 
 impl ZCurve2D {
+    /// min long
+    const X_MIN: f64 = -180.0;
+    /// min lat
+    const Y_MIN: f64 = -90.0;
+    /// max long
+    const X_MAX: f64 = 180.0;
+    /// max lat
+    const Y_MAX: f64 = 90.0;
+    /// Max Recursion constant to use.
+    const MAX_RECURSION: usize = 32;
+
     /// Constructor.
     pub fn new(resolution: i32) -> Self {
         ZCurve2D { resolution }
@@ -44,31 +55,21 @@ impl ZCurve2D {
             .min(Self::Y_MAX)
     }
 
-    /// min long
-    const X_MIN: f64 = -180.0;
-    /// min lat
-    const Y_MIN: f64 = -90.0;
-    /// max long
-    const X_MAX: f64 = 180.0;
-    /// max lat
-    const Y_MAX: f64 = 90.0;
-    /// Max Recursion constant to use.
-    const MAX_RECURSION: usize = 32;
-}
-
-impl SpaceFillingCurve2D for ZCurve2D {
-    fn index(&self, x: f64, y: f64) -> i64 {
+    /// Get the index for a point.
+    pub fn index(&self, x: f64, y: f64) -> i64 {
         let col = self.map_to_col(x);
         let row = self.map_to_row(y);
         Z2::new(col, row).z()
     }
 
-    fn point(&self, index: i64) -> (f64, f64) {
+    /// Get the point for an index.
+    pub fn point(&self, index: i64) -> (f64, f64) {
         let (col, row) = Z2::new_from_zorder(index).decode();
         (self.col_to_map(col), self.row_to_map(row))
     }
 
-    fn ranges(
+    /// Get the index ranges for a bounding box.
+    pub fn ranges(
         &self,
         x_min: f64,
         y_min: f64,
@@ -108,11 +109,11 @@ impl SpaceFillingCurve2D for ZCurve2D {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Curve, SpaceFillingCurves};
+    use crate::SpaceFillingCurves;
 
     #[test]
     fn test_produce_covering_ranges() {
-        let curve = SpaceFillingCurves::get_curve(Curve::ZOrder, 1024);
+        let curve = SpaceFillingCurves::get_point_curve(1024);
 
         let ranges = curve.ranges(
             -80.0,
