@@ -1,9 +1,6 @@
 //! A three dimensional space filling curve.
 
 use crate::index_range::IndexRange;
-use crate::normalized_dimension::{
-    LatNormalizer, LonNormalizer, NormalizedDimension, TimeNormalizer,
-};
 use crate::zorder::z_n::ZN;
 use crate::zorder::z_range::ZRange;
 use crate::RangeComputeHints;
@@ -13,70 +10,77 @@ use core::convert::TryInto;
 
 /// Three dimensional space filling curve.
 pub struct Z3 {
-    z: i64,
+    z: u64,
 }
 
 impl Z3 {
     /// New Z3 from z-index value.
-    pub fn new_from_raw(z: i64) -> Self {
+    #[must_use]
+    pub fn new_from_raw(z: u64) -> Self {
         Z3 { z }
     }
 
-    fn d0(&self) -> i32 {
+    fn d0(&self) -> u32 {
         Self::combine(self.z)
     }
 
-    fn d1(&self) -> i32 {
+    fn d1(&self) -> u32 {
         Self::combine(self.z >> 1)
     }
 
-    fn d2(&self) -> i32 {
+    fn d2(&self) -> u32 {
         Self::combine(self.z >> 2)
     }
 
-    fn decode(&self) -> (i32, i32, i32) {
+    fn decode(&self) -> (u32, u32, u32) {
         (self.d0(), self.d1(), self.d2())
     }
 
     /// Constructor.
-    pub fn new(x: i32, y: i32, z: i32) -> Self {
+    #[must_use]
+    pub fn new(x: u32, y: u32, z: u32) -> Self {
+        assert!(x <= 2_097_151);
+        assert!(y <= 2_097_151);
+        assert!(z <= 2_097_151);
+
         Z3 {
-            z: Self::split(x.into()) | Self::split(y.into()) << 1 | Self::split(z.into()) << 2,
+            z: Self::split(x) | Self::split(y) << 1 | Self::split(z) << 2,
         }
     }
 
-    fn partial_overlaps(a1: i32, a2: i32, b1: i32, b2: i32) -> bool {
+    fn partial_overlaps(a1: u32, a2: u32, b1: u32, b2: u32) -> bool {
         a1.max(b1) <= a2.min(b2)
     }
 }
 
 impl ZN for Z3 {
-    const DIMENSIONS: i32 = 3;
-    const BITS_PER_DIMENSION: i32 = 21;
-    const TOTAL_BITS: i32 = 63;
+    const DIMENSIONS: u64 = 3;
+    const BITS_PER_DIMENSION: u32 = 21;
+    const TOTAL_BITS: u64 = 63;
     const MAX_MASK: i64 = 0x1f_ffff;
 
-    fn split(value: i64) -> i64 {
-        let mut x = value & Self::MAX_MASK;
+    fn split(value: u32) -> u64 {
+        let mut x: i64 = value.into();
         x = (x | x << 32) & 0x1f_0000_0000_ffff;
         x = (x | x << 16) & 0x1f_0000_ff00_00ff;
         x = (x | x << 8) & 0x100f_00f0_0f00_f00f;
         x = (x | x << 4) & 0x10c3_0c30_c30c_30c3;
-        (x | x << 2) & 0x1249_2492_4924_9249
+        x = (x | x << 2) & 0x1249_2492_4924_9249;
+        x.try_into().expect("Values")
     }
 
-    fn combine(z: i64) -> i32 {
+    fn combine(z: u64) -> u32 {
         let mut x = z & 0x1249_2492_4924_9249;
         x = (x ^ (x >> 2)) & 0x10c3_0c30_c30c_30c3;
         x = (x ^ (x >> 4)) & 0x100f_00f0_0f00_f00f;
         x = (x ^ (x >> 8)) & 0x1f_0000_ff00_00ff;
         x = (x ^ (x >> 16)) & 0x1f_0000_0000_ffff;
-        x = (x ^ (x >> 32)) & Self::MAX_MASK;
+        x = x ^ (x >> 32);
         x.try_into()
-            .expect("The whole i64 fits into i32 because the bits have been combined.")
+            .expect("values were chosen so x fits into a u32")
     }
 
-    fn contains(range: ZRange, value: i64) -> bool {
+    fn contains(range: ZRange, value: u64) -> bool {
         let (x, y, z) = Z3::new_from_raw(value).decode();
         x >= Z3 { z: range.min }.d0()
             && x <= Z3 { z: range.max }.d0()
@@ -112,48 +116,103 @@ impl ZN for Z3 {
 }
 
 /// A nice interface into a curve to index a point and time.
-pub struct Z3TimeCurve {
-    time_normalizer: TimeNormalizer,
-    lon_normalizer: LonNormalizer,
-    lat_normalizer: LatNormalizer,
+pub struct ZCurve3D {
+    g: u32,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+    z_max: f64,
 }
 
 const MAX_RECURSION: usize = 32;
 
-impl Z3TimeCurve {
-    /// Constructor with max_timestamp that this index will act on.
-    pub fn new(max_timestamp: f64) -> Self {
-        let time_normalizer = TimeNormalizer::new(21, max_timestamp);
-        let lon_normalizer = LonNormalizer::new(21);
-        let lat_normalizer = LatNormalizer::new(21);
+impl Default for ZCurve3D {
+    fn default() -> ZCurve3D {
+        ZCurve3D::new(10_000, -180.0, -90.0, 180.0, 90.0, 2_556_057_600.0)
+    }
+}
 
-        Z3TimeCurve {
-            time_normalizer,
-            lon_normalizer,
-            lat_normalizer,
+impl ZCurve3D {
+    /// Constructor with bounds on the space-time that this index will act on.
+    #[must_use]
+    pub fn new(g: u32, x_min: f64, y_min: f64, x_max: f64, y_max: f64, z_max: f64) -> Self {
+        ZCurve3D {
+            g,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+            z_max,
         }
     }
 
+    fn cell_height(&self) -> f64 {
+        (self.y_max - self.y_min) / f64::from(self.g)
+    }
+
+    fn cell_width(&self) -> f64 {
+        (self.x_max - self.x_min) / f64::from(self.g)
+    }
+
+    fn cell_depth(&self) -> f64 {
+        self.z_max / f64::from(self.g)
+    }
+
+    fn map_to_col(&self, x: f64) -> u32 {
+        ((x - self.x_min) / self.cell_width()) as u32
+    }
+
+    fn map_to_row(&self, y: f64) -> u32 {
+        ((self.y_max - y) / self.cell_height()) as u32
+    }
+
+    fn time_to_depth(&self, z: f64) -> u32 {
+        (z / self.cell_depth()) as u32
+    }
+
+    fn col_to_map(&self, col: u32) -> f64 {
+        (f64::from(col) * self.cell_width() + self.x_min + self.cell_width() / 2.0)
+            .min(self.x_max)
+            .max(self.x_min)
+    }
+
+    fn row_to_map(&self, row: u32) -> f64 {
+        (self.y_max - f64::from(row) * self.cell_height() - self.cell_height() / 2.0)
+            .max(self.y_min)
+            .min(self.y_max)
+    }
+
+    fn depth_to_time(&self, depth: u32) -> f64 {
+        (f64::from(depth) * self.cell_depth() + self.cell_height() / 2.0)
+            .min(self.z_max)
+            .max(0.0)
+    }
+
     /// Index a `x` longitude, `y` latitude, and a timestamp `t`.
-    pub fn index(&self, x: f64, y: f64, t: f64) -> i64 {
+    #[must_use]
+    pub fn index(&self, x: f64, y: f64, t: f64) -> u64 {
         Z3::new(
-            self.lon_normalizer.normalize(x),
-            self.lat_normalizer.normalize(y),
-            self.time_normalizer.normalize(t),
+            self.map_to_col(x),
+            self.map_to_row(y),
+            self.time_to_depth(t),
         )
         .z
     }
 
     /// Return the x,y,t from an index.
-    pub fn invert(&self, i: i64) -> (f64, f64, f64) {
+    #[must_use]
+    pub fn invert(&self, i: u64) -> (f64, f64, f64) {
+        let (col, row, depth) = Z3::new_from_raw(i).decode();
         (
-            self.lon_normalizer.denormalize(Z3::new_from_raw(i).d0()),
-            self.lat_normalizer.denormalize(Z3::new_from_raw(i).d1()),
-            self.time_normalizer.denormalize(Z3::new_from_raw(i).d2()),
+            self.col_to_map(col),
+            self.row_to_map(row),
+            self.depth_to_time(depth),
         )
     }
 
     /// Return the `IndexRange`s that cover the bounding box and time range.
+    #[must_use]
     pub fn ranges(
         &self,
         x_min: f64,
@@ -164,17 +223,15 @@ impl Z3TimeCurve {
         t_max: f64,
         hints: &[RangeComputeHints],
     ) -> Vec<Box<dyn IndexRange>> {
-        let normalized_x_min = self.lon_normalizer.normalize(x_min);
-        let normalized_x_max = self.lon_normalizer.normalize(x_max);
+        let col_min = self.map_to_col(x_min);
+        let row_min = self.map_to_row(y_max);
+        let depth_min: u32 = self.time_to_depth(t_min);
+        let min = Z3::new(col_min, row_min, depth_min);
 
-        let normalized_y_min = self.lat_normalizer.normalize(y_min);
-        let normalized_y_max = self.lat_normalizer.normalize(y_max);
-
-        let normalized_t_min = self.time_normalizer.normalize(t_min);
-        let normalized_t_max = self.time_normalizer.normalize(t_max);
-
-        let min = Z3::new(normalized_x_min, normalized_y_min, normalized_t_min);
-        let max = Z3::new(normalized_x_max, normalized_y_max, normalized_t_max);
+        let col_max = self.map_to_col(x_max);
+        let row_max = self.map_to_row(y_min);
+        let depth_max: u32 = self.time_to_depth(t_max);
+        let max = Z3::new(col_max, row_max, depth_max);
 
         let max_recurse = hints.iter().find_map(|h| {
             let RangeComputeHints::MaxRecurse(max) = *h;
@@ -214,10 +271,13 @@ mod tests {
     fn test_decode() {
         assert_eq!(Z3::new(23, 13, 200).decode(), (23, 13, 200));
         // only 21 bits are saved, so MAX Value gets chopped
-        assert_eq!(Z3::new(i32::max_value(), 0, 0).decode(), (2097151, 0, 0));
         assert_eq!(
-            Z3::new(i32::max_value(), 0, i32::max_value()).decode(),
-            (2097151, 0, 2097151)
+            Z3::new(u16::max_value() as u32, 0, 0).decode(),
+            (u16::max_value() as u32, 0, 0)
+        );
+        assert_eq!(
+            Z3::new(u16::max_value() as u32, 0, u16::max_value() as u32).decode(),
+            (u16::max_value() as u32, 0, u16::max_value() as u32)
         );
     }
 
@@ -228,9 +288,9 @@ mod tests {
 
     #[test]
     fn test_z3_time_curve() {
-        let curve = Z3TimeCurve::new(1207632712000.0);
+        let curve = ZCurve3D::new(1024, -180.0, -90.0, 180.0, 90.0, 1207632712000.0);
 
-        let minneapolis_1995 = curve.index(-93.2650, 44.9778, 792013512000.0); //Minneapolis, 1995.
+        let minneapolis_1995 = curve.index(-93.2650, 44.9778, 792013512000.0); // Minneapolis, 1995.
         let minneapolis_2005 = curve.index(-93.2650, 44.9778, 1107632712000.0); //Minneapolis, 2005.
 
         let minneapolis_1995_query = curve.ranges(

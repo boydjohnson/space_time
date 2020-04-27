@@ -7,68 +7,86 @@ use alloc::{boxed::Box, vec::Vec};
 
 /// 2-Dimensional `ZCurve`, with x as longitude and y as latitude.
 pub struct ZCurve2D {
-    resolution: i32,
+    resolution: u32,
+    x_min: f64,
+    x_max: f64,
+    y_min: f64,
+    y_max: f64,
+}
+
+impl Default for ZCurve2D {
+    fn default() -> Self {
+        ZCurve2D {
+            resolution: 1024,
+            x_min: -180.0,
+            x_max: 180.0,
+            y_min: -90.0,
+            y_max: 90.0,
+        }
+    }
 }
 
 impl ZCurve2D {
-    /// min long
-    const X_MIN: f64 = -180.0;
-    /// min lat
-    const Y_MIN: f64 = -90.0;
-    /// max long
-    const X_MAX: f64 = 180.0;
-    /// max lat
-    const Y_MAX: f64 = 90.0;
     /// Max Recursion constant to use.
     const MAX_RECURSION: usize = 32;
 
     /// Constructor.
-    pub fn new(resolution: i32) -> Self {
-        ZCurve2D { resolution }
+    #[must_use]
+    pub fn new(resolution: u32, x_min: f64, y_min: f64, x_max: f64, y_max: f64) -> Self {
+        ZCurve2D {
+            resolution,
+            x_min,
+            y_min,
+            x_max,
+            y_max,
+        }
     }
 
     fn cell_width(&self) -> f64 {
-        (Self::X_MAX - Self::X_MIN) / self.resolution as f64
+        (self.x_max - self.x_min) / f64::from(self.resolution)
     }
 
     fn cell_height(&self) -> f64 {
-        (Self::Y_MAX - Self::Y_MIN) / self.resolution as f64
+        (self.y_max - self.y_min) / f64::from(self.resolution)
     }
 
-    fn map_to_col(&self, x: f64) -> i32 {
-        ((x - Self::X_MIN) / self.cell_width()) as i32
+    fn map_to_col(&self, x: f64) -> u32 {
+        ((x - self.x_min) / self.cell_width()) as u32
     }
 
-    fn map_to_row(&self, y: f64) -> i32 {
-        ((Self::Y_MAX - y) / self.cell_height()) as i32
+    fn map_to_row(&self, y: f64) -> u32 {
+        ((self.y_max - y) / self.cell_height()) as u32
     }
 
-    fn col_to_map(&self, col: i32) -> f64 {
-        (col as f64 * self.cell_width() + Self::X_MIN + self.cell_width() / 2.0)
-            .min(Self::X_MAX)
-            .max(Self::X_MIN)
+    fn col_to_map(&self, col: u32) -> f64 {
+        (f64::from(col) * self.cell_width() + self.x_min + self.cell_width() / 2.0)
+            .min(self.x_max)
+            .max(self.x_min)
     }
 
-    fn row_to_map(&self, row: i32) -> f64 {
-        (Self::Y_MAX - row as f64 * self.cell_height() - self.cell_height() / 2.0)
-            .max(Self::Y_MIN)
-            .min(Self::Y_MAX)
+    fn row_to_map(&self, row: u32) -> f64 {
+        (self.y_max - f64::from(row) * self.cell_height() - self.cell_height() / 2.0)
+            .max(self.y_min)
+            .min(self.y_max)
     }
 
     /// Get the index for a point.
-    pub fn index(&self, x: f64, y: f64) -> i64 {
+    #[must_use]
+    pub fn index(&self, x: f64, y: f64) -> u64 {
         let col = self.map_to_col(x);
         let row = self.map_to_row(y);
         Z2::new(col, row).z()
     }
 
     /// Get the point for an index.
-    pub fn point(&self, index: i64) -> (f64, f64) {
+    #[must_use]
+    pub fn point(&self, index: u64) -> (f64, f64) {
         let (col, row) = Z2::new_from_zorder(index).decode();
         (self.col_to_map(col), self.row_to_map(row))
     }
 
     /// Get the index ranges for a bounding box.
+    #[must_use]
     pub fn ranges(
         &self,
         x_min: f64,
@@ -113,7 +131,7 @@ mod tests {
 
     #[test]
     fn test_produce_covering_ranges() {
-        let curve = SpaceFillingCurves::get_point_curve(1024);
+        let curve = SpaceFillingCurves::get_point_curve(1024, -180.0, -90.0, 180.0, 90.0);
 
         let ranges = curve.ranges(
             -80.0,
@@ -133,7 +151,7 @@ mod tests {
 
     #[test]
     fn test_col_to_map_map_to_col() {
-        let curve = ZCurve2D::new(1024);
+        let curve = ZCurve2D::default();
         let m = curve.col_to_map(27);
         let col = curve.map_to_col(m);
         assert_eq!(col, 27);
@@ -141,7 +159,7 @@ mod tests {
 
     #[test]
     fn point_to_index_to_point() {
-        let curve = ZCurve2D::new(1024);
+        let curve = ZCurve2D::default();
         let index = curve.index(-45.0, -45.0);
         let point = curve.point(index);
         assert!(point > (-45.0 - 1.0, -45.0 - 1.0));

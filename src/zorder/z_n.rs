@@ -8,38 +8,38 @@ use alloc::vec::Vec;
 
 const DEFAULT_RECURSE: usize = 7;
 
-const LEVEL_TERMINATOR: (i64, i64) = (-1, -1);
+const LEVEL_TERMINATOR: (Option<u64>, Option<u64>) = (None, None);
 
 /// An N-Dimensional Z-Order Curve base class.
 pub trait ZN {
     /// Number of Bits per Dimension.
-    const BITS_PER_DIMENSION: i32;
+    const BITS_PER_DIMENSION: u32;
 
     /// Number of Dimensions.
-    const DIMENSIONS: i32;
+    const DIMENSIONS: u64;
 
     /// MAX Value of this Z-order.
     const MAX_MASK: i64;
 
     /// Total bits used. Usually bits_per_dim * dim.
-    const TOTAL_BITS: i32;
+    const TOTAL_BITS: u64;
 
     /// Number of quadrants in the quad/oct tree.
-    const QUADRANTS: i32 = 2_i32.pow(Self::DIMENSIONS as u32);
+    const QUADRANTS: u32 = 2_u32.pow(Self::DIMENSIONS as u32);
 
     /// Insert (DIMENSIONS - 1) zeros between each bit to create a zvalue
     ///  from a single dimension.
     ///
     /// #Note:
-    ///   - Only the first BITS_PER_DIMENSION can be considered.
-    fn split(value: i64) -> i64;
+    ///   - Only the first `BITS_PER_DIMENSION` can be considered.
+    fn split(value: u32) -> u64;
 
     /// Combine every (Dimensions - 1) bits to re-create a single dimension. Opposite
     /// of split.
-    fn combine(z: i64) -> i32;
+    fn combine(z: u64) -> u32;
 
     /// Tests whether range contains the value. Considers User space.
-    fn contains(range: ZRange, value: i64) -> bool;
+    fn contains(range: ZRange, value: u64) -> bool;
 
     /// Test whether range contains the value. Considers User space.
     #[must_use]
@@ -62,13 +62,13 @@ pub trait ZN {
     #[must_use]
     fn zranges<Z: ZN>(
         zbounds: &[ZRange],
-        precision: i32,
+        precision: u64,
         max_ranges: Option<usize>,
         max_recurse: Option<usize>,
     ) -> Vec<Box<dyn IndexRange>> {
         let mut ranges: Vec<Box<dyn IndexRange>> = Vec::with_capacity(100);
 
-        let mut remaining: VecDeque<(i64, i64)> = VecDeque::with_capacity(100);
+        let mut remaining: VecDeque<(Option<u64>, Option<u64>)> = VecDeque::with_capacity(100);
 
         let lcp = Self::longest_common_prefix(
             zbounds
@@ -79,7 +79,7 @@ pub trait ZN {
                     arr.push(b.max);
                     arr
                 })
-                .collect::<Vec<i64>>()
+                .collect::<Vec<u64>>()
                 .as_slice(),
         );
 
@@ -109,17 +109,18 @@ pub trait ZN {
                 Some(LEVEL_TERMINATOR) => {
                     if !remaining.is_empty() {
                         level += 1;
-                        offset -= Self::DIMENSIONS;
-                        if level >= max_recurse || offset < 0 {
+
+                        if offset == 0 || level >= max_recurse {
                             bottom_out(&mut ranges, &mut remaining);
                         } else {
                             remaining.push_back(LEVEL_TERMINATOR);
                         }
+                        offset -= Self::DIMENSIONS;
                     }
                 }
-                Some((min, _)) => {
+                Some((Some(min), _)) => {
                     let prefix = min;
-                    let mut quadrant = 0_i64;
+                    let mut quadrant = 0_u64;
                     while quadrant < Self::QUADRANTS.into() {
                         check_value::<Z>(
                             prefix,
@@ -136,7 +137,7 @@ pub trait ZN {
                         bottom_out(&mut ranges, &mut remaining);
                     }
                 }
-                None => (),
+                _ => (),
             }
 
             if remaining.is_empty() {
@@ -183,7 +184,7 @@ pub trait ZN {
     /// # NOTE:
     ///   panics if `values.len() == 0`
     #[must_use]
-    fn longest_common_prefix(values: &[i64]) -> ZPrefix {
+    fn longest_common_prefix(values: &[u64]) -> ZPrefix {
         assert!(!values.is_empty());
 
         let mut bit_shift = Self::TOTAL_BITS - Self::DIMENSIONS;
@@ -191,15 +192,18 @@ pub trait ZN {
 
         while values[1..]
             .iter()
-            .all(|v| v.wrapping_shr(bit_shift as u32) == head && bit_shift > -1)
+            .all(|v| v.wrapping_shr(bit_shift as u32) == head)
         {
             bit_shift -= Self::DIMENSIONS;
             head = values[0].wrapping_shr(bit_shift as u32);
+            if bit_shift == 0 {
+                break;
+            }
         }
 
         bit_shift += Self::DIMENSIONS;
         ZPrefix {
-            prefix: values[0] & (i64::max_value().wrapping_shl(bit_shift as u32)),
+            prefix: values[0] & (u64::max_value().wrapping_shl(bit_shift as u32)),
             precision: 64 - bit_shift,
         }
     }
@@ -209,37 +213,37 @@ pub trait ZN {
 #[derive(Debug, PartialEq)]
 pub struct ZPrefix {
     /// The common prefix.
-    pub prefix: i64,
+    pub prefix: u64,
     /// The number of bits in common.
-    pub precision: i32,
+    pub precision: u64,
 }
 
 fn check_value<Z: ZN>(
-    prefix: i64,
-    quadrant: i64,
-    offset: i32,
+    prefix: u64,
+    quadrant: u64,
+    offset: u64,
     zbounds: &[ZRange],
-    precision: i32,
+    precision: u64,
     ranges: &mut Vec<Box<dyn IndexRange>>,
-    remaining: &mut VecDeque<(i64, i64)>,
+    remaining: &mut VecDeque<(Option<u64>, Option<u64>)>,
 ) {
     let min = prefix | quadrant.wrapping_shl(offset as u32);
-    let max = min | (1_i64.wrapping_shl(offset as u32) - 1);
-    let quadrant_range = ZRange {
-        min: min as i64,
-        max: max as i64,
-    };
+    let max = min | (1_u64.wrapping_shl(offset as u32) - 1);
+    let quadrant_range = ZRange { min, max };
 
     if is_contained::<Z>(quadrant_range, zbounds) || offset < 64 - precision {
-        ranges.push(Box::new(CoveredRange::new(min as i64, max as i64)));
+        ranges.push(Box::new(CoveredRange::new(min, max)));
     } else if is_overlapped::<Z>(quadrant_range, zbounds) {
-        remaining.push_back((min as i64, max as i64));
+        remaining.push_back((Some(min), Some(max)));
     }
 }
 
-fn bottom_out(ranges: &mut Vec<Box<dyn IndexRange>>, remaining: &mut VecDeque<(i64, i64)>) {
+fn bottom_out(
+    ranges: &mut Vec<Box<dyn IndexRange>>,
+    remaining: &mut VecDeque<(Option<u64>, Option<u64>)>,
+) {
     while let Some((min, max)) = remaining.pop_front() {
-        if (min, max) != LEVEL_TERMINATOR {
+        if let (Some(min), Some(max)) = (min, max) {
             ranges.push(Box::new(OverlappingRange::new(min, max)));
         }
     }

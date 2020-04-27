@@ -7,79 +7,85 @@ use core::convert::TryInto;
 /// A two dimensional Z-Order curve.
 #[derive(Debug, PartialEq, Eq, Ord, PartialOrd)]
 pub struct Z2 {
-    z: i64,
+    z: u64,
 }
 
 impl Z2 {
     /// Constructor for `Z2` from values from dimension-1 and dimension-2.
-    pub fn new(x: i32, y: i32) -> Self {
-        Self::new_from_zorder(Self::split(x.into()) | Self::split(y.into()) << 1)
+    #[must_use]
+    pub fn new(x: u32, y: u32) -> Self {
+        assert!(x <= 2_147_483_648);
+        assert!(y <= 2_147_483_648);
+
+        Self::new_from_zorder(Self::split(x) | Self::split(y) << 1)
     }
 
     /// Create a Z2 directly from the z value.
-    pub fn new_from_zorder(zorder: i64) -> Self {
+    #[must_use]
+    pub fn new_from_zorder(zorder: u64) -> Self {
         Z2 { z: zorder }
     }
 
     /// Index value.
-    pub fn z(&self) -> i64 {
+    #[must_use]
+    pub fn z(&self) -> u64 {
         self.z
     }
 
     /// Return the user space (un-z-order indexed) values.
-    pub fn decode(&self) -> (i32, i32) {
+    #[must_use]
+    pub fn decode(&self) -> (u32, u32) {
         (self.dim(0), self.dim(1))
     }
 
-    fn dim(&self, i: i32) -> i32 {
+    fn dim(&self, i: u64) -> u32 {
         Z2::combine(self.z >> i)
     }
 
-    fn d0(&self) -> i32 {
+    fn d0(&self) -> u32 {
         self.dim(0)
     }
 
-    fn d1(&self) -> i32 {
+    fn d1(&self) -> u32 {
         self.dim(1)
     }
 
-    fn partial_overlaps(a1: i32, a2: i32, b1: i32, b2: i32) -> bool {
+    fn partial_overlaps(a1: u32, a2: u32, b1: u32, b2: u32) -> bool {
         a1.max(b1) <= a2.min(b2)
     }
 }
 
 impl ZN for Z2 {
-    const DIMENSIONS: i32 = 2;
+    const DIMENSIONS: u64 = 2;
 
-    const BITS_PER_DIMENSION: i32 = 31;
+    const BITS_PER_DIMENSION: u32 = 31;
 
-    const TOTAL_BITS: i32 = Self::DIMENSIONS * Self::BITS_PER_DIMENSION;
+    const TOTAL_BITS: u64 = Self::DIMENSIONS * Self::BITS_PER_DIMENSION as u64;
 
     const MAX_MASK: i64 = 0x7fff_ffff;
 
-    fn split(value: i64) -> i64 {
-        let mut x = value & Self::MAX_MASK;
-        x = (x ^ (x << 32)) & 0x0000_0000_ffff_ffff;
-        x = (x ^ (x << 16)) & 0x0000_ffff_0000_ffff;
-        x = (x ^ (x << 8)) & 0x00ff_00ff_00ff_00ff;
-        x = (x ^ (x << 4)) & 0x0f0f_0f0f_0f0f_0f0f;
-        x = (x ^ (x << 2)) & 0x3333_3333_3333_3333;
-        x = (x ^ (x << 1)) & 0x5555_5555_5555_5555;
+    fn split(value: u32) -> u64 {
+        let mut x = value.into();
+        x = (x ^ (x << 32)) & 0x0000_0000_ffff_ffff as u64;
+        x = (x ^ (x << 16)) & 0x0000_ffff_0000_ffff as u64;
+        x = (x ^ (x << 8)) & 0x00ff_00ff_00ff_00ff as u64;
+        x = (x ^ (x << 4)) & 0x0f0f_0f0f_0f0f_0f0f as u64;
+        x = (x ^ (x << 2)) & 0x3333_3333_3333_3333 as u64;
+        x = (x ^ (x << 1)) & 0x5555_5555_5555_5555 as u64;
         x
     }
 
-    fn combine(z: i64) -> i32 {
+    fn combine(z: u64) -> u32 {
         let mut x = z & 0x5555_5555_5555_5555;
         x = (x ^ (x >> 1)) & 0x3333_3333_3333_3333;
         x = (x ^ (x >> 2)) & 0x0f0f_0f0f_0f0f_0f0f;
         x = (x ^ (x >> 4)) & 0x00ff_00ff_00ff_00ff;
         x = (x ^ (x >> 8)) & 0x0000_ffff_0000_ffff;
         x = (x ^ (x >> 16)) & 0x0000_0000_ffff_ffff;
-        x.try_into()
-            .expect("combine reduces the number of bits by half.")
+        x.try_into().expect("Value fits into a u32")
     }
 
-    fn contains(range: ZRange, value: i64) -> bool {
+    fn contains(range: ZRange, value: u64) -> bool {
         let (x, y) = Z2 { z: value }.decode();
         x >= Z2 { z: range.min }.d0()
             && x <= Z2 { z: range.max }.d0()
@@ -113,7 +119,7 @@ mod tests {
     }
 
     #[quickcheck]
-    fn test_split_and_combine(x: u16) -> bool {
+    fn test_split_and_combine(x: u32) -> bool {
         Z2::combine(Z2::split(x.into())) == x.into()
     }
 
@@ -131,23 +137,23 @@ mod tests {
     #[test]
     fn test_z2_decoding() {
         assert_eq!(Z2::new(23, 13).decode(), (23, 13));
-        assert_eq!(Z2::new(i32::max_value(), 0).decode(), (i32::max_value(), 0));
-        assert_eq!(Z2::new(0, i32::max_value()).decode(), (0, i32::max_value()));
+        assert_eq!(Z2::new(2_147_483_648, 0).decode(), (2_147_483_648, 0));
+        assert_eq!(Z2::new(0, 2_147_483_648).decode(), (0, 2_147_483_648));
         assert_eq!(
-            Z2::new(i32::max_value(), i32::max_value()).decode(),
-            (i32::max_value(), i32::max_value())
+            Z2::new(2_147_483_648, 2_147_483_648).decode(),
+            (2_147_483_648, 2_147_483_648)
         );
         assert_eq!(
-            Z2::new(i32::max_value() - 10, i32::max_value() - 10).decode(),
-            (i32::max_value() - 10, i32::max_value() - 10)
+            Z2::new(2_147_483_648 - 10, 2_147_483_648 - 10).decode(),
+            (2_147_483_648 - 10, 2_147_483_648 - 10)
         );
     }
 
     #[test]
     fn test_longest_common_prefix() {
         assert_eq!(
-            Z2::longest_common_prefix(&[i64::max_value(), i64::max_value() - 15]).prefix,
-            i64::max_value() - 15
+            Z2::longest_common_prefix(&[u64::max_value(), u64::max_value() - 15]).prefix,
+            u64::max_value() - 15
         );
         assert_eq!(Z2::longest_common_prefix(&[15, 13]).prefix, 12); // 1111, 1101 => 1100 => 12
         assert_eq!(Z2::longest_common_prefix(&[12, 15]).prefix, 12); // 1100, 1111 => 1100

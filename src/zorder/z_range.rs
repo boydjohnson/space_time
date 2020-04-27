@@ -5,27 +5,27 @@
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct ZRange {
     /// Upper left of Rectangle.
-    pub min: i64,
+    pub min: u64,
     /// Lower right of Rectangle.
-    pub max: i64,
+    pub max: u64,
 }
 
 impl ZRange {
     /// Midpoint between min and max.
     #[must_use]
-    pub const fn mid(&self) -> i64 {
+    pub const fn mid(&self) -> u64 {
         (self.max + self.min) >> 1
     }
 
     /// Length between min and max.
     #[must_use]
-    pub const fn length(&self) -> i64 {
+    pub const fn length(&self) -> u64 {
         self.max - self.min + 1
     }
 
     /// In index space, contains the bits value.
     #[must_use]
-    pub const fn contains(&self, bits: i64) -> bool {
+    pub const fn contains(&self, bits: u64) -> bool {
         bits >= self.min && bits <= self.max
     }
 
