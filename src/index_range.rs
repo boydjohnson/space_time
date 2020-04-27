@@ -1,5 +1,5 @@
 //! Contains trait `IndexRange` and concrete structs `CoveredRange` and
-//! `OverlappingRange`. IndexRange has `Ord` so is sortable.
+//! `OverlappingRange`. `IndexRange` has `Ord` so is sortable.
 //!
 
 use core::cmp::{Ord, Ordering};
@@ -7,16 +7,16 @@ use core::cmp::{Ord, Ordering};
 /// Sortable Range trait.
 pub trait IndexRange: core::fmt::Debug {
     /// The lower index.
-    fn lower(&self) -> i64;
+    fn lower(&self) -> u64;
 
     /// The upper index.
-    fn upper(&self) -> i64;
+    fn upper(&self) -> u64;
 
     /// Contained.
     fn contained(&self) -> bool;
 
     /// Returns all three (lower, upper, contained) as a tuple.
-    fn tuple(&self) -> (i64, i64, bool) {
+    fn tuple(&self) -> (u64, u64, bool) {
         (
             <Self as IndexRange>::lower(&self),
             <Self as IndexRange>::upper(&self),
@@ -56,23 +56,24 @@ impl Eq for dyn IndexRange {}
 ///
 #[derive(Debug, PartialEq, Eq)]
 pub struct CoveredRange {
-    upper: i64,
-    lower: i64,
+    upper: u64,
+    lower: u64,
 }
 
 impl CoveredRange {
     /// Constructor.
-    pub fn new(lower: i64, upper: i64) -> Self {
+    #[must_use]
+    pub fn new(lower: u64, upper: u64) -> Self {
         CoveredRange { lower, upper }
     }
 }
 
 impl IndexRange for CoveredRange {
-    fn upper(&self) -> i64 {
+    fn upper(&self) -> u64 {
         self.upper
     }
 
-    fn lower(&self) -> i64 {
+    fn lower(&self) -> u64 {
         self.lower
     }
 
@@ -84,23 +85,24 @@ impl IndexRange for CoveredRange {
 /// An overlapping range.
 #[derive(Debug, PartialEq, Eq)]
 pub struct OverlappingRange {
-    upper: i64,
-    lower: i64,
+    upper: u64,
+    lower: u64,
 }
 
 impl OverlappingRange {
     /// Constructor.
-    pub fn new(lower: i64, upper: i64) -> Self {
+    #[must_use]
+    pub fn new(lower: u64, upper: u64) -> Self {
         OverlappingRange { lower, upper }
     }
 }
 
 impl IndexRange for OverlappingRange {
-    fn upper(&self) -> i64 {
+    fn upper(&self) -> u64 {
         self.upper
     }
 
-    fn lower(&self) -> i64 {
+    fn lower(&self) -> u64 {
         self.lower
     }
 
