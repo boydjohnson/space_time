@@ -113,9 +113,13 @@ mod tests {
     use super::*;
 
     #[quickcheck]
-    fn test_userspace_to_z2_and_back(x: u16, y: u16) -> bool {
-        let (x_, y_) = Z2::new(x.into(), y.into()).decode();
-        x_ == x.into() && y_ == y.into()
+    fn test_userspace_to_z2_and_back(x: u32, y: u32) -> bool {
+        if x > 2_147_483_648 || y > 2_147_483_648 {
+            true
+        } else {
+            let (x_, y_) = Z2::new(x.into(), y.into()).decode();
+            x_ == x && y_ == y
+        }
     }
 
     #[quickcheck]

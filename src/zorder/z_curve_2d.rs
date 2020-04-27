@@ -165,4 +165,31 @@ mod tests {
         assert!(point > (-45.0 - 1.0, -45.0 - 1.0));
         assert!(point < (-45.0 + 1.0, -45.0 + 1.0));
     }
+
+    #[test]
+    fn test_sweep_through_map() {
+        let curve = ZCurve2D::default();
+
+        let mut lon = -180.0;
+        let mut lat = -90.0;
+
+        while lon < 180.0 {
+            while lat < 90.0 {
+                let indexed_point = curve.index(lon, lat);
+                let range = curve.ranges(
+                    (lon - 10.0).max(-180.0),
+                    (lat - 10.0).max(-90.0),
+                    (lon + 10.0).min(180.0),
+                    (lat + 10.0).min(90.0),
+                    &[],
+                );
+                assert!(range
+                    .iter()
+                    .any(|r| r.lower() <= indexed_point && indexed_point <= r.upper()));
+
+                lat += 1.0;
+            }
+            lon += 1.0;
+        }
+    }
 }

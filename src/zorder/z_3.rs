@@ -310,4 +310,38 @@ mod tests {
             .iter()
             .any(|r| r.lower() <= minneapolis_2005 && r.upper() >= minneapolis_2005));
     }
+
+    #[test]
+    fn test_sweep_through_map() {
+        let curve = ZCurve3D::default();
+
+        let mut lon = -180.0;
+        let mut lat = -90.0;
+        let mut t = 0.0;
+
+        while lon < 180.0 {
+            while lat < 90.0 {
+                while t < 2_556_057_600.0 {
+                    let indexed_point = curve.index(lon, lat, t);
+                    let range = curve.ranges(
+                        (lon - 10.0).max(-180.0),
+                        (lat - 10.0).max(-90.0),
+                        (lon + 10.0).min(180.0),
+                        (lat + 10.0).min(90.0),
+                        (t - 10.0).max(0.0),
+                        (t + 10.0).min(2_556_057_600.0),
+                        &[],
+                    );
+                    assert!(range
+                        .iter()
+                        .any(|r| r.lower() <= indexed_point && indexed_point <= r.upper()));
+
+                    t += 10_000_000.0;
+                }
+
+                lat += 5.0;
+            }
+            lon += 5.0;
+        }
+    }
 }
