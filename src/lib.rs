@@ -34,6 +34,7 @@
 //! ```
 
 pub mod index_range;
+pub mod xzorder;
 pub mod zorder;
 
 #[cfg(test)]
