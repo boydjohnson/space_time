@@ -39,9 +39,9 @@ impl Z3 {
     /// Constructor.
     #[must_use]
     pub fn new(x: u32, y: u32, z: u32) -> Self {
-        assert!(x <= 2_097_151);
-        assert!(y <= 2_097_151);
-        assert!(z <= 2_097_151);
+        assert!(x <= Self::MAX_MASK as u32);
+        assert!(y <= Self::MAX_MASK as u32);
+        assert!(z <= Self::MAX_MASK as u32);
 
         Z3 {
             z: Self::split(x) | Self::split(y) << 1 | Self::split(z) << 2,
@@ -57,16 +57,17 @@ impl ZN for Z3 {
     const DIMENSIONS: u64 = 3;
     const BITS_PER_DIMENSION: u32 = 21;
     const TOTAL_BITS: u64 = 63;
-    const MAX_MASK: i64 = 0x1f_ffff;
+    const MAX_MASK: u64 = 0x1f_ffff;
 
     fn split(value: u32) -> u64 {
-        let mut x: i64 = value.into();
-        x = (x | x << 32) & 0x1f_0000_0000_ffff;
-        x = (x | x << 16) & 0x1f_0000_ff00_00ff;
-        x = (x | x << 8) & 0x100f_00f0_0f00_f00f;
-        x = (x | x << 4) & 0x10c3_0c30_c30c_30c3;
-        x = (x | x << 2) & 0x1249_2492_4924_9249;
-        x.try_into().expect("Values")
+        let mut x: u64 = value.into();
+        x &= Self::MAX_MASK;
+        x = (x | x << 32) & 0x1f_0000_0000_ffff as u64;
+        x = (x | x << 16) & 0x1f_0000_ff00_00ff as u64;
+        x = (x | x << 8) & 0x100f_00f0_0f00_f00f as u64;
+        x = (x | x << 4) & 0x10c3_0c30_c30c_30c3 as u64;
+        x = (x | x << 2) & 0x1249_2492_4924_9249 as u64;
+        x
     }
 
     fn combine(z: u64) -> u32 {
