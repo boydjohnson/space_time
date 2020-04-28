@@ -14,8 +14,8 @@ impl Z2 {
     /// Constructor for `Z2` from values from dimension-1 and dimension-2.
     #[must_use]
     pub fn new(x: u32, y: u32) -> Self {
-        assert!(x <= 2_147_483_648);
-        assert!(y <= 2_147_483_648);
+        assert!(x <= Self::MAX_MASK as u32);
+        assert!(y <= Self::MAX_MASK as u32);
 
         Self::new_from_zorder(Self::split(x) | Self::split(y) << 1)
     }
@@ -62,16 +62,17 @@ impl ZN for Z2 {
 
     const TOTAL_BITS: u64 = Self::DIMENSIONS * Self::BITS_PER_DIMENSION as u64;
 
-    const MAX_MASK: i64 = 0x7fff_ffff;
+    const MAX_MASK: u64 = 0x7fff_ffff;
 
     fn split(value: u32) -> u64 {
         let mut x = value.into();
-        x = (x ^ (x << 32)) & 0x0000_0000_ffff_ffff as u64;
-        x = (x ^ (x << 16)) & 0x0000_ffff_0000_ffff as u64;
-        x = (x ^ (x << 8)) & 0x00ff_00ff_00ff_00ff as u64;
-        x = (x ^ (x << 4)) & 0x0f0f_0f0f_0f0f_0f0f as u64;
-        x = (x ^ (x << 2)) & 0x3333_3333_3333_3333 as u64;
-        x = (x ^ (x << 1)) & 0x5555_5555_5555_5555 as u64;
+        x &= Self::MAX_MASK;
+        x = (x | (x << 32)) & 0x0000_0000_ffff_ffff as u64;
+        x = (x | (x << 16)) & 0x0000_ffff_0000_ffff as u64;
+        x = (x | (x << 8)) & 0x00ff_00ff_00ff_00ff as u64;
+        x = (x | (x << 4)) & 0x0f0f_0f0f_0f0f_0f0f as u64;
+        x = (x | (x << 2)) & 0x3333_3333_3333_3333 as u64;
+        x = (x | (x << 1)) & 0x5555_5555_5555_5555 as u64;
         x
     }
 
@@ -114,7 +115,7 @@ mod tests {
 
     #[quickcheck]
     fn test_userspace_to_z2_and_back(x: u32, y: u32) -> bool {
-        if x > 2_147_483_648 || y > 2_147_483_648 {
+        if x > Z2::MAX_MASK as u32 || y > Z2::MAX_MASK as u32 {
             true
         } else {
             let (x_, y_) = Z2::new(x.into(), y.into()).decode();
@@ -141,15 +142,21 @@ mod tests {
     #[test]
     fn test_z2_decoding() {
         assert_eq!(Z2::new(23, 13).decode(), (23, 13));
-        assert_eq!(Z2::new(2_147_483_648, 0).decode(), (2_147_483_648, 0));
-        assert_eq!(Z2::new(0, 2_147_483_648).decode(), (0, 2_147_483_648));
         assert_eq!(
-            Z2::new(2_147_483_648, 2_147_483_648).decode(),
-            (2_147_483_648, 2_147_483_648)
+            Z2::new(Z2::MAX_MASK as u32, 0).decode(),
+            (Z2::MAX_MASK as u32, 0)
         );
         assert_eq!(
-            Z2::new(2_147_483_648 - 10, 2_147_483_648 - 10).decode(),
-            (2_147_483_648 - 10, 2_147_483_648 - 10)
+            Z2::new(0, Z2::MAX_MASK as u32).decode(),
+            (0, Z2::MAX_MASK as u32)
+        );
+        assert_eq!(
+            Z2::new(Z2::MAX_MASK as u32, Z2::MAX_MASK as u32).decode(),
+            (Z2::MAX_MASK as u32, Z2::MAX_MASK as u32)
+        );
+        assert_eq!(
+            Z2::new(Z2::MAX_MASK as u32 - 10, Z2::MAX_MASK as u32 - 10).decode(),
+            (Z2::MAX_MASK as u32 - 10, Z2::MAX_MASK as u32 - 10)
         );
     }
 

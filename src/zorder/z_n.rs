@@ -19,7 +19,7 @@ pub trait ZN {
     const DIMENSIONS: u64;
 
     /// MAX Value of this Z-order.
-    const MAX_MASK: i64;
+    const MAX_MASK: u64;
 
     /// Total bits used. Usually bits_per_dim * dim.
     const TOTAL_BITS: u64;
