@@ -33,7 +33,7 @@
 //! assert!(range_of_index.iter().any(|r| r.lower() <= indexed_point_in_time && r.upper() >= indexed_point_in_time));
 //! ```
 //!
-//! Extending Z-order curves are used for non-points.
+//! Extended Z-order curves are used for non-points.
 //! `XZ2SFC` for spatial indexing of non-points.
 //! ```
 //! use space_time::SpaceFillingCurves;
@@ -41,6 +41,36 @@
 //! let curve = SpaceFillingCurves::get_non_point_curve(12, -180.0, -90.0, 180.0, 90.0);
 //! let indexed_polygon = curve.index(2.3522, 48.8466, 2.39, 49.9325);
 //! let range_of_index = curve.ranges(2.0, 48.0, 3.0, 50.0, None);
+//!
+//! assert!(range_of_index
+//!     .iter()
+//!     .any(|r| r.lower() <= indexed_polygon && r.upper() >= indexed_polygon));
+//! ```
+//! `XZ3SFC` for spatial-temporal indexing of non-points.
+//!
+//! ```
+//! use space_time::SpaceTimeFillingCurves;
+//!
+//! let curve = SpaceTimeFillingCurves::get_non_point_curve(
+//!     12,
+//!     -180.0,
+//!     -90.0,
+//!     0.0,
+//!     180.0,
+//!     90.0,
+//!     1_893_456_000.0,
+//! );
+//!
+//! let indexed_polygon = curve.index(
+//!     2.3522,
+//!     48.8466,
+//!     1_556_496_000.0,
+//!     2.39,
+//!     49.9325,
+//!     1_556_496_000.0,
+//! );
+//!
+//! let range_of_index = curve.ranges(2.0, 48.0, 1_556_300_000.0, 3.0, 50.0, 1_557_496_000.0, None);
 //!
 //! assert!(range_of_index
 //!     .iter()
@@ -61,6 +91,7 @@ extern crate quickcheck_macros;
 extern crate alloc;
 
 use xzorder::xz2_sfc::XZ2SFC;
+use xzorder::xz3_sfc::XZ3SFC;
 use zorder::z_3::ZCurve3D;
 use zorder::z_curve_2d::ZCurve2D;
 
@@ -108,6 +139,20 @@ impl SpaceTimeFillingCurves {
         t_max: f64,
     ) -> ZCurve3D {
         ZCurve3D::new(resolution, x_min, y_min, x_max, y_max, t_max)
+    }
+
+    /// Return a nonpoint space-time indexing curve.
+    #[must_use]
+    pub fn get_non_point_curve(
+        resolution: u32,
+        x_min: f64,
+        y_min: f64,
+        z_min: f64,
+        x_max: f64,
+        y_max: f64,
+        z_max: f64,
+    ) -> XZ3SFC {
+        XZ3SFC::new(resolution, x_min, y_min, z_min, x_max, y_max, z_max)
     }
 }
 
