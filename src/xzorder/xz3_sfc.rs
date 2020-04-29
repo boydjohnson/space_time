@@ -36,6 +36,28 @@ impl XZ3SFC {
         }
     }
 
+    /// General constructor for XZ3SFC.
+    #[must_use]
+    pub fn new(
+        g: u32,
+        x_min: f64,
+        y_min: f64,
+        z_min: f64,
+        x_max: f64,
+        y_max: f64,
+        z_max: f64,
+    ) -> Self {
+        XZ3SFC {
+            g,
+            x_min,
+            y_min,
+            z_min,
+            x_max,
+            y_max,
+            z_max,
+        }
+    }
+
     fn x_size(&self) -> f64 {
         self.x_max - self.x_min
     }
