@@ -1,6 +1,6 @@
 [package]
 name = "space-time"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Boyd Johnson <johnson.boyd@gmail.com>"]
 description = "A nightly only library of space-time filling curves that supports no-std."
 license-file = "LICENSE.txt"
@@ -13,7 +13,6 @@ edition = "2018"
 [dependencies]
 num-integer = { version = "^0.1", default-features = false }
 num-traits = { version = "^0.2", default-features = false, features = ["libm"] }
-time = { version = "^0.2", default-features = false }
 
 [dev-dependencies]
 quickcheck = "^0.9"
