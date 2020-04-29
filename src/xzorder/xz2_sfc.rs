@@ -31,6 +31,18 @@ impl XZ2SFC {
         self.y_max - self.y_min
     }
 
+    /// Return an `XZ2SFC`.
+    #[must_use]
+    pub fn new(g: u32, x_min: f64, y_min: f64, x_max: f64, y_max: f64) -> Self {
+        XZ2SFC {
+            g,
+            x_min,
+            x_max,
+            y_min,
+            y_max,
+        }
+    }
+
     /// An `XZ2SFC` for unprojected coordinates.
     #[must_use]
     pub fn wgs84(g: u32) -> Self {
