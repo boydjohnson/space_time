@@ -148,11 +148,7 @@ pub trait ZN {
         // All ranges found. Now reduce them by merging overlapping values.
         ranges.sort();
 
-        let mut current = if ranges.is_empty() {
-            None
-        } else {
-            Some(ranges.remove(0))
-        };
+        let mut current: Option<Box<dyn IndexRange>> = None;
         let mut results = Vec::new();
 
         for range in ranges {
