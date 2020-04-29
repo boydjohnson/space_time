@@ -5,7 +5,7 @@ authors = ["Boyd Johnson <johnson.boyd@gmail.com>"]
 description = "A nightly only library of space-time filling curves that supports no-std."
 license-file = "LICENSE.txt"
 repository = "https://github.com/boydjohnson/space_time"
-keywords = ["spatial indexing", "space filling curve", "spatio-temporal", "no-std"]
+keywords = ["spatial", "space-filling-curves", "spatio-temporal", "no-std"]
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
