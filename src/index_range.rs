@@ -15,7 +15,6 @@
 
 //! Contains trait `IndexRange` and concrete structs `CoveredRange` and
 //! `OverlappingRange`. `IndexRange` has `Ord` so is sortable.
-//!
 
 use core::cmp::{Ord, Ordering};
 

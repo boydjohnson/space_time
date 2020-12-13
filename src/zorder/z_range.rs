@@ -14,7 +14,6 @@
 // limitations under the License.
 
 //! `ZRange` struct is a rectangle defined by the upper left and lower right corners.
-//!
 
 /// z-order index aware rectangle defined by min (upper left) and max (lower right)
 #[derive(Debug, PartialEq, Copy, Clone)]
