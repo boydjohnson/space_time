@@ -77,11 +77,11 @@ impl ZN for Z3 {
     fn split(value: u32) -> u64 {
         let mut x: u64 = value.into();
         x &= Self::MAX_MASK;
-        x = (x | x << 32) & 0x1f_0000_0000_ffff as u64;
-        x = (x | x << 16) & 0x1f_0000_ff00_00ff as u64;
-        x = (x | x << 8) & 0x100f_00f0_0f00_f00f as u64;
-        x = (x | x << 4) & 0x10c3_0c30_c30c_30c3 as u64;
-        x = (x | x << 2) & 0x1249_2492_4924_9249 as u64;
+        x = (x | x << 32) & 0x1f_0000_0000_ffff_u64;
+        x = (x | x << 16) & 0x1f_0000_ff00_00ff_u64;
+        x = (x | x << 8) & 0x100f_00f0_0f00_f00f_u64;
+        x = (x | x << 4) & 0x10c3_0c30_c30c_30c3_u64;
+        x = (x | x << 2) & 0x1249_2492_4924_9249_u64;
         x
     }
 
@@ -229,6 +229,7 @@ impl ZCurve3D {
 
     /// Return the `IndexRange`s that cover the bounding box and time range.
     #[must_use]
+    #[allow(clippy::too_many_arguments)]
     pub fn ranges(
         &self,
         x_min: f64,

@@ -124,6 +124,7 @@ impl XZ3SFC {
     }
 
     /// Compute the index range that are contained or overlap the bounding box.
+    #[allow(clippy::too_many_arguments)]
     pub fn ranges(
         &self,
         xmin: f64,
