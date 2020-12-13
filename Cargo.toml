@@ -1,6 +1,6 @@
 [package]
 name = "space-time"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Boyd Johnson <johnson.boyd@gmail.com>"]
 description = "A nightly only library of space-time filling curves that supports no-std."
 license-file = "LICENSE.txt"
