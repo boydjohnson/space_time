@@ -14,8 +14,6 @@
 // limitations under the License.
 
 #![no_std]
-#![feature(trait_alias)]
-#![feature(const_int_pow)]
 #![feature(const_fn)]
 #![deny(missing_docs)]
 //! Partial port of the scala-based geomesa-z3 library from [geomesa](http://github.com/locationtech/geomesa)
