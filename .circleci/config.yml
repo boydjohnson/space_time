@@ -7,6 +7,8 @@ jobs:
             - checkout
             - run: cargo test
             - run: cargo fmt -- --check
+            - run: cargo clean
+            - run: cargo clippy -- -D clippy::all
             - run: cargo build
 workflows:
     version: 2

@@ -82,12 +82,12 @@ impl ZN for Z2 {
     fn split(value: u32) -> u64 {
         let mut x = value.into();
         x &= Self::MAX_MASK;
-        x = (x | (x << 32)) & 0x0000_0000_ffff_ffff as u64;
-        x = (x | (x << 16)) & 0x0000_ffff_0000_ffff as u64;
-        x = (x | (x << 8)) & 0x00ff_00ff_00ff_00ff as u64;
-        x = (x | (x << 4)) & 0x0f0f_0f0f_0f0f_0f0f as u64;
-        x = (x | (x << 2)) & 0x3333_3333_3333_3333 as u64;
-        x = (x | (x << 1)) & 0x5555_5555_5555_5555 as u64;
+        x = (x | (x << 32)) & 0x0000_0000_ffff_ffff_u64;
+        x = (x | (x << 16)) & 0x0000_ffff_0000_ffff_u64;
+        x = (x | (x << 8)) & 0x00ff_00ff_00ff_00ff_u64;
+        x = (x | (x << 4)) & 0x0f0f_0f0f_0f0f_0f0f_u64;
+        x = (x | (x << 2)) & 0x3333_3333_3333_3333_u64;
+        x = (x | (x << 1)) & 0x5555_5555_5555_5555_u64;
         x
     }
 
