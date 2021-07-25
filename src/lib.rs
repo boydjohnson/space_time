@@ -14,7 +14,6 @@
 // limitations under the License.
 
 #![no_std]
-#![feature(const_fn)]
 #![deny(missing_docs)]
 //! Partial port of the scala-based geomesa-z3 library from [geomesa](http://github.com/locationtech/geomesa)
 //! Partial port of [sfcurve](https://github.com/locationtech/sfcurve) scala space-filling curve library.
