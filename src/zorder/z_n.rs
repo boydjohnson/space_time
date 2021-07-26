@@ -15,12 +15,11 @@
 
 //! An N-Dimensional Z-Order Curve base class.
 
-use crate::index_range::{CoveredRange, IndexRange, OverlappingRange};
-use crate::zorder::z_range::ZRange;
-use alloc::boxed::Box;
-use alloc::collections::VecDeque;
-use alloc::vec;
-use alloc::vec::Vec;
+use crate::{
+    index_range::{CoveredRange, IndexRange, OverlappingRange},
+    zorder::z_range::ZRange,
+};
+use alloc::{boxed::Box, collections::VecDeque, vec, vec::Vec};
 
 const DEFAULT_RECURSE: usize = 7;
 

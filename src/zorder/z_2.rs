@@ -15,8 +15,7 @@
 
 //! A two dimensional Z-Order curve.
 
-use crate::zorder::z_n::ZN;
-use crate::zorder::z_range::ZRange;
+use crate::zorder::{z_n::ZN, z_range::ZRange};
 use core::convert::TryInto;
 
 /// A two dimensional Z-Order curve.

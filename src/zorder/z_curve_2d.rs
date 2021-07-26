@@ -15,9 +15,11 @@
 
 //! Implementation of `SpaceFillingCurve2D` for zorder.
 
-use crate::index_range::IndexRange;
-use crate::zorder::{z_2::Z2, z_n::ZN, z_range::ZRange};
-use crate::RangeComputeHints;
+use crate::{
+    index_range::IndexRange,
+    zorder::{z_2::Z2, z_n::ZN, z_range::ZRange},
+    RangeComputeHints,
+};
 use alloc::{boxed::Box, vec::Vec};
 
 /// 2-Dimensional `ZCurve`, with x as longitude and y as latitude.

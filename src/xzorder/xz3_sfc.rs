@@ -16,9 +16,7 @@
 //! Space-Time filling curve for non-points
 
 use crate::index_range::{CoveredRange, IndexRange, OverlappingRange};
-use alloc::boxed::Box;
-use alloc::collections::VecDeque;
-use alloc::{vec, vec::Vec};
+use alloc::{boxed::Box, collections::VecDeque, vec, vec::Vec};
 use num_integer::div_floor;
 #[allow(unused_imports)]
 use num_traits::Float;

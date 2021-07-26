@@ -15,12 +15,12 @@
 
 //! A three dimensional space filling curve.
 
-use crate::index_range::IndexRange;
-use crate::zorder::z_n::ZN;
-use crate::zorder::z_range::ZRange;
-use crate::RangeComputeHints;
-use alloc::boxed::Box;
-use alloc::vec::Vec;
+use crate::{
+    index_range::IndexRange,
+    zorder::{z_n::ZN, z_range::ZRange},
+    RangeComputeHints,
+};
+use alloc::{boxed::Box, vec::Vec};
 use core::convert::TryInto;
 
 /// Three dimensional space filling curve.
