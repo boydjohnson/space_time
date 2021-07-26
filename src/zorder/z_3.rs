@@ -156,8 +156,8 @@ impl ZCurve3D {
         ZCurve3D {
             g,
             x_min,
-            y_min,
             x_max,
+            y_min,
             y_max,
             z_max,
         }

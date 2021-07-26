@@ -51,8 +51,8 @@ impl ZCurve2D {
         ZCurve2D {
             resolution,
             x_min,
-            y_min,
             x_max,
+            y_min,
             y_max,
         }
     }
@@ -161,7 +161,7 @@ mod tests {
         let (l, r, contains) = ranges[0].tuple();
         assert_eq!(l, 197616);
         assert_eq!(r, 197631);
-        assert_eq!(contains, true);
+        assert!(contains);
     }
 
     #[test]
