@@ -15,11 +15,11 @@
 
 //! An N-Dimensional Z-Order Curve base class.
 
-use crate::index_range::{CoveredRange, IndexRange, OverlappingRange};
-use crate::zorder::z_range::ZRange;
-use alloc::boxed::Box;
-use alloc::collections::VecDeque;
-use alloc::vec::Vec;
+use crate::{
+    index_range::{CoveredRange, IndexRange, OverlappingRange},
+    zorder::z_range::ZRange,
+};
+use alloc::{boxed::Box, collections::VecDeque, vec, vec::Vec};
 
 const DEFAULT_RECURSE: usize = 7;
 
@@ -88,12 +88,7 @@ pub trait ZN {
         let lcp = Self::longest_common_prefix(
             zbounds
                 .iter()
-                .flat_map(|b| {
-                    let mut arr = Vec::with_capacity(2);
-                    arr.push(b.min);
-                    arr.push(b.max);
-                    arr
-                })
+                .flat_map(|b| vec![b.min, b.max])
                 .collect::<Vec<u64>>()
                 .as_slice(),
         );

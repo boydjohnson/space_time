@@ -15,8 +15,7 @@
 
 //! A two dimensional Z-Order curve.
 
-use crate::zorder::z_n::ZN;
-use crate::zorder::z_range::ZRange;
+use crate::zorder::{z_n::ZN, z_range::ZRange};
 use core::convert::TryInto;
 
 /// A two dimensional Z-Order curve.
@@ -133,14 +132,14 @@ mod tests {
         if x > Z2::MAX_MASK as u32 || y > Z2::MAX_MASK as u32 {
             true
         } else {
-            let (x_, y_) = Z2::new(x.into(), y.into()).decode();
+            let (x_, y_) = Z2::new(x, y).decode();
             x_ == x && y_ == y
         }
     }
 
     #[quickcheck]
     fn test_split_and_combine(x: u32) -> bool {
-        Z2::combine(Z2::split(x.into())) == x.into()
+        Z2::combine(Z2::split(x)) == x
     }
 
     #[test]

@@ -78,7 +78,7 @@ impl CoveredRange {
     /// Constructor.
     #[must_use]
     pub fn new(lower: u64, upper: u64) -> Self {
-        CoveredRange { lower, upper }
+        CoveredRange { upper, lower }
     }
 }
 
@@ -107,7 +107,7 @@ impl OverlappingRange {
     /// Constructor.
     #[must_use]
     pub fn new(lower: u64, upper: u64) -> Self {
-        OverlappingRange { lower, upper }
+        OverlappingRange { upper, lower }
     }
 }
 

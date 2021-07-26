@@ -14,7 +14,6 @@
 // limitations under the License.
 
 #![no_std]
-#![feature(const_fn)]
 #![deny(missing_docs)]
 //! Partial port of the scala-based geomesa-z3 library from [geomesa](http://github.com/locationtech/geomesa)
 //! Partial port of [sfcurve](https://github.com/locationtech/sfcurve) scala space-filling curve library.
@@ -103,10 +102,8 @@ extern crate quickcheck_macros;
 
 extern crate alloc;
 
-use xzorder::xz2_sfc::XZ2SFC;
-use xzorder::xz3_sfc::XZ3SFC;
-use zorder::z_3::ZCurve3D;
-use zorder::z_curve_2d::ZCurve2D;
+use xzorder::{xz2_sfc::XZ2SFC, xz3_sfc::XZ3SFC};
+use zorder::{z_3::ZCurve3D, z_curve_2d::ZCurve2D};
 
 /// Factory providing space filling curves
 pub struct SpaceFillingCurves;
