@@ -70,7 +70,7 @@ pub trait ZN {
     /// `max_recurse` = 7, `max_ranges` = `usize::max_value()`).
     #[must_use]
     fn zranges_default<Z: ZN>(zbounds: &[ZRange]) -> Vec<Box<dyn IndexRange>> {
-        Self::zranges::<Z>(zbounds, 64, Some(usize::max_value()), Some(DEFAULT_RECURSE))
+        Self::zranges::<Z>(zbounds, 64, Some(usize::MAX), Some(DEFAULT_RECURSE))
     }
 
     /// Compute the Z-index ranges that cover zbounds.
@@ -110,7 +110,7 @@ pub trait ZN {
         let mut level = 0;
 
         let max_recurse = max_recurse.unwrap_or(DEFAULT_RECURSE);
-        let max_ranges = max_ranges.unwrap_or(usize::max_value());
+        let max_ranges = max_ranges.unwrap_or(usize::MAX);
 
         loop {
             let next = remaining.pop_front();
@@ -209,7 +209,7 @@ pub trait ZN {
 
         bit_shift += Self::DIMENSIONS;
         ZPrefix {
-            prefix: values[0] & (u64::max_value().wrapping_shl(bit_shift as u32)),
+            prefix: values[0] & (u64::MAX.wrapping_shl(bit_shift as u32)),
             precision: 64 - bit_shift,
         }
     }

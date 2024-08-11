@@ -32,8 +32,8 @@ pub trait IndexRange: core::fmt::Debug {
     /// Returns all three (lower, upper, contained) as a tuple.
     fn tuple(&self) -> (u64, u64, bool) {
         (
-            <Self as IndexRange>::lower(&self),
-            <Self as IndexRange>::upper(&self),
+            <Self as IndexRange>::lower(self),
+            <Self as IndexRange>::upper(self),
             self.contained(),
         )
     }
@@ -67,7 +67,7 @@ impl PartialEq for dyn IndexRange {
 
 impl Eq for dyn IndexRange {}
 
-///
+/// A covered range.
 #[derive(Debug, PartialEq, Eq)]
 pub struct CoveredRange {
     upper: u64,

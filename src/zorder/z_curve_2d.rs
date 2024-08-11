@@ -120,14 +120,17 @@ impl ZCurve2D {
         let row_max = self.map_to_row(y_min);
         let max = Z2::new(col_max, row_max);
 
-        let max_recurse = hints.iter().find_map(|h| {
-            let RangeComputeHints::MaxRecurse(max) = *h;
-            if max > Self::MAX_RECURSION {
-                Some(Self::MAX_RECURSION)
-            } else {
-                Some(max)
-            }
-        });
+        let max_recurse = hints
+            .iter()
+            .map(|h| {
+                let RangeComputeHints::MaxRecurse(max) = *h;
+                if max > Self::MAX_RECURSION {
+                    Self::MAX_RECURSION
+                } else {
+                    max
+                }
+            })
+            .next();
 
         Z2::zranges::<Z2>(
             &[ZRange {

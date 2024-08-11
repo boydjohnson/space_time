@@ -250,14 +250,17 @@ impl ZCurve3D {
         let depth_max: u32 = self.time_to_depth(t_max);
         let max = Z3::new(col_max, row_max, depth_max);
 
-        let max_recurse = hints.iter().find_map(|h| {
-            let RangeComputeHints::MaxRecurse(max) = *h;
-            if max > MAX_RECURSION {
-                Some(MAX_RECURSION)
-            } else {
-                Some(max)
-            }
-        });
+        let max_recurse = hints
+            .iter()
+            .map(|h| {
+                let RangeComputeHints::MaxRecurse(max) = *h;
+                if max > MAX_RECURSION {
+                    MAX_RECURSION
+                } else {
+                    max
+                }
+            })
+            .next();
 
         <Z3 as ZN>::zranges::<Z3>(
             &[ZRange {
