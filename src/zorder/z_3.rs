@@ -292,12 +292,12 @@ mod tests {
         assert_eq!(Z3::new(23, 13, 200).decode(), (23, 13, 200));
         // only 21 bits are saved, so MAX Value gets chopped
         assert_eq!(
-            Z3::new(u16::max_value() as u32, 0, 0).decode(),
-            (u16::max_value() as u32, 0, 0)
+            Z3::new(u16::MAX as u32, 0, 0).decode(),
+            (u16::MAX as u32, 0, 0)
         );
         assert_eq!(
-            Z3::new(u16::max_value() as u32, 0, u16::max_value() as u32).decode(),
-            (u16::max_value() as u32, 0, u16::max_value() as u32)
+            Z3::new(u16::MAX as u32, 0, u16::MAX as u32).decode(),
+            (u16::MAX as u32, 0, u16::MAX as u32)
         );
     }
 

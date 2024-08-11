@@ -181,8 +181,8 @@ mod tests {
     #[test]
     fn test_longest_common_prefix() {
         assert_eq!(
-            Z2::longest_common_prefix(&[u64::max_value(), u64::max_value() - 15]).prefix,
-            u64::max_value() - 15
+            Z2::longest_common_prefix(&[u64::MAX, u64::MAX - 15]).prefix,
+            u64::MAX - 15
         );
         assert_eq!(Z2::longest_common_prefix(&[15, 13]).prefix, 12); // 1111, 1101 => 1100 => 12
         assert_eq!(Z2::longest_common_prefix(&[12, 15]).prefix, 12); // 1100, 1111 => 1100

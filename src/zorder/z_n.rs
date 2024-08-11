@@ -67,7 +67,7 @@ pub trait ZN {
     fn overlaps(range: ZRange, value: ZRange) -> bool;
 
     /// Compute the Z-index ranges that cover zbounds (Default values: precision = 64,
-    /// `max_recurse` = 7, `max_ranges` = `usize::max_value()`).
+    /// `max_recurse` = 7, `max_ranges` = `usize::MAX`).
     #[must_use]
     fn zranges_default<Z: ZN>(zbounds: &[ZRange]) -> Vec<Box<dyn IndexRange>> {
         Self::zranges::<Z>(zbounds, 64, Some(usize::MAX), Some(DEFAULT_RECURSE))
