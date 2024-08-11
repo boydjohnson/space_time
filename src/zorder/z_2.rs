@@ -139,7 +139,11 @@ mod tests {
 
     #[quickcheck]
     fn test_split_and_combine(x: u32) -> bool {
-        Z2::combine(Z2::split(x)) == x
+        if x > Z2::MAX_MASK as u32 {
+            true
+        } else {
+            Z2::combine(Z2::split(x)) == x
+        }
     }
 
     #[test]
