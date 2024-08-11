@@ -207,17 +207,17 @@ impl XZ2SFC {
                     ymax = y_center;
                 }
                 (false, true) => {
-                    cs += 1 + div_floor(4_u64.pow(self.g as u32 - i) - 1_u64, 3);
+                    cs += 1 + div_floor(4_u64.pow(self.g - i) - 1_u64, 3);
                     xmin = x_center;
                     ymax = y_center;
                 }
                 (true, false) => {
-                    cs += 1 + div_floor(2 * (4_u64.pow(self.g as u32 - i) - 1_u64), 3);
+                    cs += 1 + div_floor(2 * (4_u64.pow(self.g - i) - 1_u64), 3);
                     xmax = x_center;
                     ymin = y_center;
                 }
                 (false, false) => {
-                    cs += 1 + div_floor(3 * 4_u64.pow(self.g as u32 - i) - 1_u64, 3);
+                    cs += 1 + div_floor(3 * 4_u64.pow(self.g - i) - 1_u64, 3);
                     xmin = x_center;
                     ymin = y_center;
                 }
