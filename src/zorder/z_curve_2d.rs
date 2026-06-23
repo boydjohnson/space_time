@@ -148,6 +148,7 @@ impl ZCurve2D {
 mod tests {
     use super::*;
     use crate::SpaceFillingCurves;
+    use alloc::vec;
 
     #[test]
     fn test_produce_covering_ranges() {
@@ -180,15 +181,54 @@ mod tests {
     #[test]
     fn point_to_index_to_point() {
         let curve = ZCurve2D::default();
-        let index = curve.index(-45.0, -45.0);
-        let point = curve.point(index);
-        assert!(point > (-45.0 - 1.0, -45.0 - 1.0));
-        assert!(point < (-45.0 + 1.0, -45.0 + 1.0));
+        for (lon, lat) in (-180..=180).zip(-90..=90) {
+            let lat = lat as f64;
+            let lon = lon as f64;
+            let index = curve.index(lon, lat);
+            let point = curve.point(index);
+            assert!(point.0 > lon - 1.0);
+            assert!(point.1 > lat - 1.0);
+            assert!(point.0 < lon + 1.0);
+            assert!(point.1 < lat + 1.0);
+        }
+    }
+
+    #[test]
+    fn index_to_point_to_index() {
+        let curve = ZCurve2D::default();
+
+        for index in 0..100000 {
+            let point = curve.point(index);
+            let idx = curve.index(point.0, point.1);
+
+            assert_eq!(idx, index);
+        }
+    }
+
+    #[test]
+    fn test_index_and_range_find() {
+        let curve = ZCurve2D::default();
+
+        let index = curve.index(-92.1, 44.34);
+
+        let ranges = curve.ranges(-92.1, 44.34, -92.1, 44.34, &[]);
+
+        assert!(ranges
+            .iter()
+            .all(|c| c.lower() <= index && c.upper() >= index));
+
+        let index = curve.index(-92.1, -44.34);
+
+        let ranges = curve.ranges(-92.1, -44.34, -92.1, -44.34, &[]);
+
+        assert!(ranges
+            .iter()
+            .all(|c| c.lower() <= index && c.upper() >= index));
     }
 
     #[test]
     fn test_sweep_through_map() {
-        let curve = ZCurve2D::default();
+        let curve = ZCurve2D::new(600_000_000, -180.0, -90.0, 180.0, 90.0);
 
         let mut lon = -180.0;
         let mut lat = -90.0;
