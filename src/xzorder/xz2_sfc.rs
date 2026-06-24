@@ -35,6 +35,10 @@ pub struct XZ2SFC {
 }
 
 impl XZ2SFC {
+    /// Maximum supported resolution. Above this, the `4.pow(g - i)` terms in
+    /// `sequence_code`/`sequence_interval` overflow `u64` (`4^32 == 2^64`).
+    pub const MAX_G: u32 = 31;
+
     fn x_size(&self) -> f64 {
         self.x_max - self.x_min
     }
@@ -44,8 +48,14 @@ impl XZ2SFC {
     }
 
     /// Return an `XZ2SFC`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `g > MAX_G` (31), the resolution above which the curve's
+    /// index arithmetic overflows `u64`.
     #[must_use]
     pub fn new(g: u32, x_min: f64, y_min: f64, x_max: f64, y_max: f64) -> Self {
+        assert!(g <= Self::MAX_G, "resolution g must be <= {}", Self::MAX_G);
         XZ2SFC {
             g,
             x_min,
@@ -56,8 +66,13 @@ impl XZ2SFC {
     }
 
     /// An `XZ2SFC` for unprojected coordinates.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `g > MAX_G` (31).
     #[must_use]
     pub fn wgs84(g: u32) -> Self {
+        assert!(g <= Self::MAX_G, "resolution g must be <= {}", Self::MAX_G);
         XZ2SFC {
             g,
             x_min: -180.0,
@@ -363,6 +378,36 @@ impl XElement {
             XElement::new(self.xmin, y_center, x_center, self.ymax, len),
             XElement::new(x_center, y_center, self.xmax, self.ymax, len),
         ]
+    }
+}
+
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    /// Under the `g <= MAX_G` bound enforced by the constructors, none of the
+    /// `4.pow`-based index terms in `sequence_code`/`sequence_interval` overflow
+    /// `u64`. The exponent `g - i` (with `i` in `0..length`, `length <= g`) and
+    /// the `sequence_interval` exponent `g - length + 1` both lie in `1..=g`, so
+    /// the proof ranges over every reachable exponent.
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn sequence_terms_dont_overflow() {
+        let g: u32 = kani::any();
+        kani::assume(g <= XZ2SFC::MAX_G);
+
+        let e: u32 = kani::any();
+        kani::assume(e >= 1 && e <= g);
+
+        // `4.pow(e)` itself must not overflow.
+        let p = 4_u64.pow(e);
+
+        // Per-quadrant increments accumulated in `sequence_code`.
+        let _ = div_floor(p - 1, 3);
+        let _ = div_floor(2 * (p - 1), 3);
+
+        // Non-partial upper bound term in `sequence_interval`.
+        let _ = div_floor(p, 3);
     }
 }
 

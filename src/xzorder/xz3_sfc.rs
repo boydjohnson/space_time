@@ -35,9 +35,19 @@ pub struct XZ3SFC {
 const LEVEL_TERMINATOR: Option<XElement> = None;
 
 impl XZ3SFC {
+    /// Maximum supported resolution. Above this, the `7 * (8.pow(g - i) - 1)`
+    /// terms in `sequence_code` overflow `u64` (`7 * 8^21 > 2^64`).
+    pub const MAX_G: u32 = 20;
+
     /// Create an 3D extended z-order curve in unprojected coordinates.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `g > MAX_G` (20), the resolution above which the curve's
+    /// index arithmetic overflows `u64`.
     #[must_use]
     pub fn wgs84(g: u32, z_min: f64, z_max: f64) -> Self {
+        assert!(g <= Self::MAX_G, "resolution g must be <= {}", Self::MAX_G);
         XZ3SFC {
             g,
             x_min: -180.0,
@@ -50,6 +60,10 @@ impl XZ3SFC {
     }
 
     /// General constructor for XZ3SFC.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `g > MAX_G` (20).
     #[must_use]
     pub fn new(
         g: u32,
@@ -60,6 +74,7 @@ impl XZ3SFC {
         y_max: f64,
         z_max: f64,
     ) -> Self {
+        assert!(g <= Self::MAX_G, "resolution g must be <= {}", Self::MAX_G);
         XZ3SFC {
             g,
             x_min,
@@ -510,6 +525,40 @@ impl XElement {
                 length: len,
             },
         ]
+    }
+}
+
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    /// Under the `g <= MAX_G` bound enforced by the constructors, none of the
+    /// `8.pow`-based index terms in `sequence_code`/`sequence_interval` overflow
+    /// `u64`. The exponent `g - i` (with `i` in `0..length`, `length <= g`) and
+    /// the `sequence_interval` exponent `g - length + 1` both lie in `1..=g`, so
+    /// the proof ranges over every reachable exponent and every octant multiplier
+    /// (1..=7).
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn sequence_terms_dont_overflow() {
+        let g: u32 = kani::any();
+        kani::assume(g <= XZ3SFC::MAX_G);
+
+        let e: u32 = kani::any();
+        kani::assume(e >= 1 && e <= g);
+
+        // `8.pow(e)` itself must not overflow.
+        let p = 8_u64.pow(e);
+
+        // Per-octant increments accumulated in `sequence_code` (multipliers 1..=7).
+        let mut m = 1_u64;
+        while m <= 7 {
+            let _ = div_floor(m * (p - 1), 7);
+            m += 1;
+        }
+
+        // Non-partial upper bound term in `sequence_interval`.
+        let _ = div_floor(p, 7);
     }
 }
 
