@@ -597,17 +597,21 @@ mod tests {
         for bbox in &[containing, overlapping].concat() {
             let ranges = sfc.ranges(bbox.0, bbox.1, bbox.2, bbox.3, bbox.4, bbox.5, Some(10000));
 
-            assert!(ranges
-                .iter()
-                .any(|r| r.lower() <= polygon && polygon <= r.upper()));
+            assert!(
+                ranges
+                    .iter()
+                    .any(|r| r.lower() <= polygon && polygon <= r.upper())
+            );
         }
 
         for bbox in &disjoint {
             let ranges = sfc.ranges(bbox.0, bbox.1, bbox.2, bbox.3, bbox.4, bbox.5, Some(10000));
 
-            assert!(!ranges
-                .iter()
-                .any(|r| r.lower() <= polygon && polygon <= r.upper()));
+            assert!(
+                !ranges
+                    .iter()
+                    .any(|r| r.lower() <= polygon && polygon <= r.upper())
+            );
         }
     }
 

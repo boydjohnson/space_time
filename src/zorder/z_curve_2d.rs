@@ -16,9 +16,9 @@
 //! Implementation of `SpaceFillingCurve2D` for zorder.
 
 use crate::{
+    RangeComputeHints,
     index_range::IndexRange,
     zorder::{z_2::Z2, z_n::ZN, z_range::ZRange},
-    RangeComputeHints,
 };
 use alloc::{boxed::Box, vec::Vec};
 
@@ -212,17 +212,21 @@ mod tests {
 
         let ranges = curve.ranges(-92.1, 44.34, -92.1, 44.34, &[]);
 
-        assert!(ranges
-            .iter()
-            .all(|c| c.lower() <= index && c.upper() >= index));
+        assert!(
+            ranges
+                .iter()
+                .all(|c| c.lower() <= index && c.upper() >= index)
+        );
 
         let index = curve.index(-92.1, -44.34);
 
         let ranges = curve.ranges(-92.1, -44.34, -92.1, -44.34, &[]);
 
-        assert!(ranges
-            .iter()
-            .all(|c| c.lower() <= index && c.upper() >= index));
+        assert!(
+            ranges
+                .iter()
+                .all(|c| c.lower() <= index && c.upper() >= index)
+        );
     }
 
     #[test]
@@ -242,9 +246,11 @@ mod tests {
                     (lat + 10.0).min(90.0),
                     &[],
                 );
-                assert!(range
-                    .iter()
-                    .any(|r| r.lower() <= indexed_point && indexed_point <= r.upper()));
+                assert!(
+                    range
+                        .iter()
+                        .any(|r| r.lower() <= indexed_point && indexed_point <= r.upper())
+                );
 
                 lat += 1.0;
             }

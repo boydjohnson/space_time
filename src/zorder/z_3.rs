@@ -16,9 +16,9 @@
 //! A three dimensional space filling curve.
 
 use crate::{
+    RangeComputeHints,
     index_range::IndexRange,
     zorder::{z_n::ZN, z_range::ZRange},
-    RangeComputeHints,
 };
 use alloc::{boxed::Box, vec::Vec};
 use core::convert::TryInto;
@@ -476,12 +476,16 @@ mod tests {
             &[],
         );
 
-        assert!(minneapolis_1995_query
-            .iter()
-            .any(|r| r.lower() <= minneapolis_1995 && r.upper() >= minneapolis_1995));
-        assert!(!minneapolis_1995_query
-            .iter()
-            .any(|r| r.lower() <= minneapolis_2005 && r.upper() >= minneapolis_2005));
+        assert!(
+            minneapolis_1995_query
+                .iter()
+                .any(|r| r.lower() <= minneapolis_1995 && r.upper() >= minneapolis_1995)
+        );
+        assert!(
+            !minneapolis_1995_query
+                .iter()
+                .any(|r| r.lower() <= minneapolis_2005 && r.upper() >= minneapolis_2005)
+        );
     }
 
     #[test]
@@ -505,9 +509,11 @@ mod tests {
                         (t + 10.0).min(2_556_057_600.0),
                         &[],
                     );
-                    assert!(range
-                        .iter()
-                        .any(|r| r.lower() <= indexed_point && indexed_point <= r.upper()));
+                    assert!(
+                        range
+                            .iter()
+                            .any(|r| r.lower() <= indexed_point && indexed_point <= r.upper())
+                    );
 
                     t += 10_000_000.0;
                 }

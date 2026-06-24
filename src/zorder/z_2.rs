@@ -312,7 +312,7 @@ mod tests {
         );
         assert_eq!(Z2::longest_common_prefix(&[15, 13]).prefix, 12); // 1111, 1101 => 1100 => 12
         assert_eq!(Z2::longest_common_prefix(&[12, 15]).prefix, 12); // 1100, 1111 => 1100
-                                                                     // => 12
+        // => 12
     }
 
     #[test]
