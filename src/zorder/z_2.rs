@@ -123,6 +123,32 @@ impl ZN for Z2 {
     }
 }
 
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    /// Splitting then combining a value within `MAX_MASK` is the identity, for
+    /// every valid input. Also proves the `try_into().expect(..)` in `combine`
+    /// never panics.
+    #[kani::proof]
+    fn split_combine_roundtrip() {
+        let x: u32 = kani::any();
+        kani::assume(x <= Z2::MAX_MASK as u32);
+        assert_eq!(Z2::combine(Z2::split(x)), x);
+    }
+
+    /// Encoding two dimensions into a `Z2` and decoding recovers the original
+    /// pair, for every valid input.
+    #[kani::proof]
+    fn encode_decode_roundtrip() {
+        let x: u32 = kani::any();
+        let y: u32 = kani::any();
+        kani::assume(x <= Z2::MAX_MASK as u32);
+        kani::assume(y <= Z2::MAX_MASK as u32);
+        assert_eq!(Z2::new(x, y).decode(), (x, y));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

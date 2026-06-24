@@ -91,7 +91,7 @@ impl ZN for Z3 {
         x = (x ^ (x >> 4)) & 0x100f_00f0_0f00_f00f;
         x = (x ^ (x >> 8)) & 0x1f_0000_ff00_00ff;
         x = (x ^ (x >> 16)) & 0x1f_0000_0000_ffff;
-        x = x ^ (x >> 32);
+        x = (x ^ (x >> 32)) & Self::MAX_MASK;
         x.try_into()
             .expect("values were chosen so x fits into a u32")
     }
@@ -274,6 +274,34 @@ impl ZCurve3D {
     }
 }
 
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    /// Splitting then combining a value within `MAX_MASK` is the identity, for
+    /// every valid input. Also proves the `try_into().expect(..)` in `combine`
+    /// never panics.
+    #[kani::proof]
+    fn split_combine_roundtrip() {
+        let x: u32 = kani::any();
+        kani::assume(x <= Z3::MAX_MASK as u32);
+        assert_eq!(Z3::combine(Z3::split(x)), x);
+    }
+
+    /// Encoding three dimensions into a `Z3` and decoding recovers the original
+    /// triple, for every valid input.
+    #[kani::proof]
+    fn encode_decode_roundtrip() {
+        let x: u32 = kani::any();
+        let y: u32 = kani::any();
+        let z: u32 = kani::any();
+        kani::assume(x <= Z3::MAX_MASK as u32);
+        kani::assume(y <= Z3::MAX_MASK as u32);
+        kani::assume(z <= Z3::MAX_MASK as u32);
+        assert_eq!(Z3::new(x, y, z).decode(), (x, y, z));
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -304,6 +332,15 @@ mod tests {
     #[quickcheck]
     fn test_encode_decode(x: u16, y: u16, z: u16) -> bool {
         Z3::new(x.into(), y.into(), z.into()).decode() == (x.into(), y.into(), z.into())
+    }
+
+    #[quickcheck]
+    fn test_encode_decode_full_range(x: u32, y: u32, z: u32) -> bool {
+        // Exercise the full 21-bit `MAX_MASK` range, not just the lower 16 bits.
+        let x = x & Z3::MAX_MASK as u32;
+        let y = y & Z3::MAX_MASK as u32;
+        let z = z & Z3::MAX_MASK as u32;
+        Z3::new(x, y, z).decode() == (x, y, z)
     }
 
     #[test]
