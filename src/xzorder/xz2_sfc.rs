@@ -487,3 +487,99 @@ mod tests {
         assert_eq!(ranges.last().map(|r| r.upper()), Some(847016214083));
     }
 }
+
+#[cfg(test)]
+mod range_query_tests {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    /// Every `(code, element)` in the quadtree down to depth `g`.
+    fn enumerate(sfc: &XZ2SFC) -> Vec<(u64, XElement)> {
+        let mut out = Vec::new();
+        let mut stack: Vec<(XElement, u32)> = XElement::level_one_elements()
+            .into_iter()
+            .map(|e| (e, 1))
+            .collect();
+        while let Some((e, level)) = stack.pop() {
+            let code = sfc.sequence_code(e.xmin, e.ymin, level);
+            if level < sfc.g {
+                for c in e.children() {
+                    stack.push((c, level + 1));
+                }
+            }
+            out.push((code, e));
+        }
+        out
+    }
+
+    /// End-to-end property for the XZ2 range engine. For any query window and
+    /// any `range_stop` (including the small values that force early
+    /// `bottom_out`), `ranges_impl` must be
+    ///
+    ///  * COMPLETE — every element whose (enlarged) extent overlaps the query is covered
+    ///    by some returned range, so no candidate object is missed, and
+    ///  * SOUND — every element whose code lands in a `CoveredRange` is fully contained
+    ///    in the query (overlapping ranges may spill, covered ones may not).
+    ///
+    /// Driven in normalized `[0, 1]` space with dyadic query coordinates so all
+    /// element-boundary comparisons are exact in `f64`.
+    #[quickcheck]
+    fn xz2_ranges_complete_and_sound(g_seed: u8, coords: (u8, u8, u8, u8), range_stop: u8) -> bool {
+        let g = u32::from(g_seed % 4) + 1; // 1..=4
+        let sfc = XZ2SFC::wgs84(g);
+
+        let denom = f64::from(1u32 << g); // 2^g
+        let to_unit = |v: u8| f64::from(u32::from(v) % ((1u32 << g) + 1)) / denom;
+        let (a, b, c, d) = coords;
+        let (mut xmin, mut xmax) = (to_unit(a), to_unit(c));
+        if xmin > xmax {
+            core::mem::swap(&mut xmin, &mut xmax);
+        }
+        let (mut ymin, mut ymax) = (to_unit(b), to_unit(d));
+        if ymin > ymax {
+            core::mem::swap(&mut ymin, &mut ymax);
+        }
+        let window = QueryWindow {
+            xmin,
+            ymin,
+            xmax,
+            ymax,
+        };
+
+        // `0` means "no limit"; otherwise an aggressive cap that forces bottom-out.
+        let range_stop = if range_stop == 0 {
+            u16::MAX
+        } else {
+            u16::from(range_stop)
+        };
+        let ranges = sfc.ranges_impl(&[window], range_stop);
+
+        let elements = enumerate(&sfc);
+
+        // Completeness.
+        for (code, e) in &elements {
+            if e.overlaps(&window)
+                && !ranges
+                    .iter()
+                    .any(|r| r.lower() <= *code && *code <= r.upper())
+            {
+                return false;
+            }
+        }
+
+        // Soundness of covered ranges.
+        for (code, e) in &elements {
+            for r in &ranges {
+                if r.contained()
+                    && r.lower() <= *code
+                    && *code <= r.upper()
+                    && !e.is_contained(&window)
+                {
+                    return false;
+                }
+            }
+        }
+
+        true
+    }
+}
