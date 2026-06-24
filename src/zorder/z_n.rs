@@ -63,6 +63,17 @@ pub trait ZN {
     }
 
     /// Test whether range and value overlap. Considers User space.
+    ///
+    /// # Precondition
+    ///
+    /// Both `range` and `value` must be proper bounding boxes whose `min` and
+    /// `max` decode to user-space corners that are ordered in every dimension
+    /// (i.e. `min`'s coordinate is `<=` `max`'s coordinate per axis). The
+    /// Z-curve is not monotonic per dimension, so a `ZRange` with `min <= max`
+    /// as raw indices does not guarantee this; passing an unordered box can make
+    /// `overlaps` report no overlap when the boxes actually intersect. The range
+    /// constructors on the curve types (e.g. `Z2Curve::ranges`) always build
+    /// ordered boxes, so callers using those are safe.
     #[must_use]
     fn overlaps(range: ZRange, value: ZRange) -> bool;
 

@@ -300,6 +300,122 @@ mod kani_proofs {
         kani::assume(z <= Z3::MAX_MASK as u32);
         assert_eq!(Z3::new(x, y, z).decode(), (x, y, z));
     }
+
+    /// Build a `ZRange` bounding box from two ordered user-space corners.
+    fn box_from(x0: u32, y0: u32, z0: u32, x1: u32, y1: u32, z1: u32) -> ZRange {
+        ZRange {
+            min: Z3::new(x0, y0, z0).z,
+            max: Z3::new(x1, y1, z1).z,
+        }
+    }
+
+    /// Any user-space point inside a bounding box (built from two ordered
+    /// corners) is reported as contained by `Z3::contains`. This proves the
+    /// user-space containment semantics of the index-space predicate.
+    #[kani::proof]
+    fn point_in_box_is_contained() {
+        let x0: u32 = kani::any();
+        let y0: u32 = kani::any();
+        let z0: u32 = kani::any();
+        let x1: u32 = kani::any();
+        let y1: u32 = kani::any();
+        let z1: u32 = kani::any();
+        kani::assume(x0 <= x1 && x1 <= Z3::MAX_MASK as u32);
+        kani::assume(y0 <= y1 && y1 <= Z3::MAX_MASK as u32);
+        kani::assume(z0 <= z1 && z1 <= Z3::MAX_MASK as u32);
+
+        let px: u32 = kani::any();
+        let py: u32 = kani::any();
+        let pz: u32 = kani::any();
+        kani::assume(x0 <= px && px <= x1);
+        kani::assume(y0 <= py && py <= y1);
+        kani::assume(z0 <= pz && pz <= z1);
+
+        let range = box_from(x0, y0, z0, x1, y1, z1);
+        assert!(Z3::contains(range, Z3::new(px, py, pz).z));
+    }
+
+    /// For bounding boxes built from ordered corners, if `range` contains both
+    /// corners of `value` then `range` and `value` overlap. A containing range
+    /// must overlap.
+    #[kani::proof]
+    fn contains_value_implies_overlaps() {
+        let rx0: u32 = kani::any();
+        let ry0: u32 = kani::any();
+        let rz0: u32 = kani::any();
+        let rx1: u32 = kani::any();
+        let ry1: u32 = kani::any();
+        let rz1: u32 = kani::any();
+        kani::assume(rx0 <= rx1 && rx1 <= Z3::MAX_MASK as u32);
+        kani::assume(ry0 <= ry1 && ry1 <= Z3::MAX_MASK as u32);
+        kani::assume(rz0 <= rz1 && rz1 <= Z3::MAX_MASK as u32);
+
+        let vx0: u32 = kani::any();
+        let vy0: u32 = kani::any();
+        let vz0: u32 = kani::any();
+        let vx1: u32 = kani::any();
+        let vy1: u32 = kani::any();
+        let vz1: u32 = kani::any();
+        kani::assume(vx0 <= vx1 && vx1 <= Z3::MAX_MASK as u32);
+        kani::assume(vy0 <= vy1 && vy1 <= Z3::MAX_MASK as u32);
+        kani::assume(vz0 <= vz1 && vz1 <= Z3::MAX_MASK as u32);
+
+        let range = box_from(rx0, ry0, rz0, rx1, ry1, rz1);
+        let value = box_from(vx0, vy0, vz0, vx1, vy1, vz1);
+
+        kani::assume(Z3::contains_value(range, value));
+        assert!(Z3::overlaps(range, value));
+    }
+
+    /// `Z3::overlaps` is symmetric for every pair of index-space rectangles.
+    #[kani::proof]
+    fn overlaps_is_symmetric() {
+        let a_min: u64 = kani::any();
+        let a_max: u64 = kani::any();
+        let b_min: u64 = kani::any();
+        let b_max: u64 = kani::any();
+        let a = ZRange {
+            min: a_min,
+            max: a_max,
+        };
+        let b = ZRange {
+            min: b_min,
+            max: b_max,
+        };
+        assert_eq!(Z3::overlaps(a, b), Z3::overlaps(b, a));
+    }
+
+    /// A point is contained by a bounding box exactly when the box overlaps the
+    /// degenerate range made of just that point. Ties `contains` and `overlaps`
+    /// together.
+    #[kani::proof]
+    fn contains_matches_degenerate_overlap() {
+        let x0: u32 = kani::any();
+        let y0: u32 = kani::any();
+        let z0: u32 = kani::any();
+        let x1: u32 = kani::any();
+        let y1: u32 = kani::any();
+        let z1: u32 = kani::any();
+        kani::assume(x0 <= x1 && x1 <= Z3::MAX_MASK as u32);
+        kani::assume(y0 <= y1 && y1 <= Z3::MAX_MASK as u32);
+        kani::assume(z0 <= z1 && z1 <= Z3::MAX_MASK as u32);
+
+        let px: u32 = kani::any();
+        let py: u32 = kani::any();
+        let pz: u32 = kani::any();
+        kani::assume(px <= Z3::MAX_MASK as u32);
+        kani::assume(py <= Z3::MAX_MASK as u32);
+        kani::assume(pz <= Z3::MAX_MASK as u32);
+
+        let range = box_from(x0, y0, z0, x1, y1, z1);
+        let point = Z3::new(px, py, pz).z;
+        let degenerate = ZRange {
+            min: point,
+            max: point,
+        };
+
+        assert_eq!(Z3::contains(range, point), Z3::overlaps(range, degenerate));
+    }
 }
 
 #[cfg(test)]
