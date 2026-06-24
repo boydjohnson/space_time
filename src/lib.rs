@@ -29,9 +29,11 @@
 //! let indexed_point = curve.index(2.3522, 48.8566);
 //! let range_of_index = curve.ranges(2.35, 48.85, 2.354, 48.857, &[]);
 //!
-//! assert!(range_of_index
-//!     .iter()
-//!     .any(|r| r.lower() <= indexed_point && r.upper() >= indexed_point));
+//! assert!(
+//!     range_of_index
+//!         .iter()
+//!         .any(|r| r.lower() <= indexed_point && r.upper() >= indexed_point)
+//! );
 //! ```
 //! Z3 curve is used for two dimensional point and time indexing and can be accessed
 //! through the `SpaceTimeFillingCurves` factory.
@@ -54,9 +56,11 @@
 //! let indexed_polygon = curve.index(2.3522, 48.8466, 2.39, 49.9325);
 //! let range_of_index = curve.ranges(2.0, 48.0, 3.0, 50.0, None);
 //!
-//! assert!(range_of_index
-//!     .iter()
-//!     .any(|r| r.lower() <= indexed_polygon && r.upper() >= indexed_polygon));
+//! assert!(
+//!     range_of_index
+//!         .iter()
+//!         .any(|r| r.lower() <= indexed_polygon && r.upper() >= indexed_polygon)
+//! );
 //! ```
 //! `XZ3SFC` for spatial-temporal indexing of non-points.
 //!
@@ -84,9 +88,11 @@
 //!
 //! let range_of_index = curve.ranges(2.0, 48.0, 1_556_300_000.0, 3.0, 50.0, 1_557_496_000.0, None);
 //!
-//! assert!(range_of_index
-//!     .iter()
-//!     .any(|r| r.lower() <= indexed_polygon && r.upper() >= indexed_polygon));
+//! assert!(
+//!     range_of_index
+//!         .iter()
+//!         .any(|r| r.lower() <= indexed_polygon && r.upper() >= indexed_polygon)
+//! );
 //! ```
 
 pub mod index_range;

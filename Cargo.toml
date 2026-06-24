@@ -6,7 +6,7 @@ description = "A nightly only library of space-time filling curves that supports
 license-file = "LICENSE.txt"
 repository = "https://github.com/boydjohnson/space_time"
 keywords = ["spatial", "space-filling-curves", "spatio-temporal", "no-std"]
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

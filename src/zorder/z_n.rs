@@ -171,22 +171,25 @@ pub trait ZN {
         let mut results = Vec::new();
 
         for range in ranges {
-            match current.take() { Some(cur) => {
-                if range.lower() <= cur.upper().saturating_add(1) {
-                    let max = cur.upper().max(range.upper());
-                    let min = cur.lower();
-                    if cur.contained() && range.contained() {
-                        current = Some(Box::new(CoveredRange::new(min, max)));
+            match current.take() {
+                Some(cur) => {
+                    if range.lower() <= cur.upper().saturating_add(1) {
+                        let max = cur.upper().max(range.upper());
+                        let min = cur.lower();
+                        if cur.contained() && range.contained() {
+                            current = Some(Box::new(CoveredRange::new(min, max)));
+                        } else {
+                            current = Some(Box::new(OverlappingRange::new(min, max)));
+                        }
                     } else {
-                        current = Some(Box::new(OverlappingRange::new(min, max)));
+                        results.push(cur);
+                        current = Some(range);
                     }
-                } else {
-                    results.push(cur);
+                }
+                _ => {
                     current = Some(range);
                 }
-            } _ => {
-                current = Some(range);
-            }}
+            }
         }
         if let Some(cur) = current {
             results.push(cur);
