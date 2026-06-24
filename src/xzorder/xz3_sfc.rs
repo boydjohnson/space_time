@@ -288,6 +288,16 @@ impl XZ3SFC {
         )
     }
 
+    /// Curve-code offset contributed by octant `q` (`0..=7`) at remaining
+    /// resolution `k`: the number of cells skipped by stepping past octants
+    /// `0..q` of a node whose subtree spans `k` more levels. Shared by
+    /// `sequence_code` and `sequence_interval` so the kani overflow proof
+    /// exercises the exact arithmetic used in production. Does not overflow for
+    /// `k <= MAX_G` (see `code_offset_doesnt_overflow`).
+    fn code_offset(q: u64, k: u32) -> u64 {
+        div_floor(q * (8_u64.pow(k) - 1), 7)
+    }
+
     fn sequence_code(&self, x: f64, y: f64, z: f64, length: u32) -> u64 {
         let mut x_min = 0.0;
         let mut y_min = 0.0;
@@ -311,43 +321,43 @@ impl XZ3SFC {
                     z_max = z_center;
                 }
                 (false, true, true) => {
-                    cs += 1 + div_floor(8_u64.pow(self.g - i) - 1, 7);
+                    cs += 1 + Self::code_offset(1, self.g - i);
                     x_min = x_center;
                     y_max = y_center;
                     z_max = z_center;
                 }
                 (true, false, true) => {
-                    cs += 1 + div_floor(2 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(2, self.g - i);
                     x_max = x_center;
                     y_min = y_center;
                     z_max = z_center;
                 }
                 (false, false, true) => {
-                    cs += 1 + div_floor(3 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(3, self.g - i);
                     x_min = x_center;
                     y_min = y_center;
                     z_max = z_center;
                 }
                 (true, true, false) => {
-                    cs += 1 + div_floor(4 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(4, self.g - i);
                     x_max = x_center;
                     y_max = y_center;
                     z_min = z_center;
                 }
                 (false, true, false) => {
-                    cs += 1 + div_floor(5 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(5, self.g - i);
                     x_min = x_center;
                     y_max = y_center;
                     z_min = z_center;
                 }
                 (true, false, false) => {
-                    cs += 1 + div_floor(6 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(6, self.g - i);
                     x_max = x_center;
                     y_min = y_center;
                     z_min = z_center;
                 }
                 (false, false, false) => {
-                    cs += 1 + div_floor(7 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(7, self.g - i);
                     x_min = x_center;
                     y_min = y_center;
                     z_min = z_center;
@@ -363,7 +373,7 @@ impl XZ3SFC {
         let max = if partial {
             min
         } else {
-            min + div_floor(8_u64.pow(self.g - length + 1), 7)
+            min + Self::code_offset(1, self.g - length + 1)
         };
 
         (min, max)
@@ -532,33 +542,25 @@ impl XElement {
 mod kani_proofs {
     use super::*;
 
-    /// Under the `g <= MAX_G` bound enforced by the constructors, none of the
-    /// `8.pow`-based index terms in `sequence_code`/`sequence_interval` overflow
-    /// `u64`. The exponent `g - i` (with `i` in `0..length`, `length <= g`) and
-    /// the `sequence_interval` exponent `g - length + 1` both lie in `1..=g`, so
-    /// the proof ranges over every reachable exponent and every octant multiplier
-    /// (1..=7).
+    /// `XZ3SFC::code_offset` — the single arithmetic helper behind every
+    /// `sequence_code`/`sequence_interval` curve-code term — never overflows
+    /// `u64` under the `g <= MAX_G` bound enforced by the constructors. The
+    /// resolution argument `k` (`g - i` with `i` in `0..length <= g`, or
+    /// `g - length + 1`) lies in `1..=g`, and the octant `q` in `0..=7`, so the
+    /// proof ranges over every value reachable in production.
     #[kani::proof]
     #[kani::unwind(33)]
-    fn sequence_terms_dont_overflow() {
+    fn code_offset_doesnt_overflow() {
         let g: u32 = kani::any();
         kani::assume(g <= XZ3SFC::MAX_G);
 
-        let e: u32 = kani::any();
-        kani::assume(e >= 1 && e <= g);
+        let k: u32 = kani::any();
+        kani::assume(k >= 1 && k <= g);
 
-        // `8.pow(e)` itself must not overflow.
-        let p = 8_u64.pow(e);
+        let q: u64 = kani::any();
+        kani::assume(q <= 7);
 
-        // Per-octant increments accumulated in `sequence_code` (multipliers 1..=7).
-        let mut m = 1_u64;
-        while m <= 7 {
-            let _ = div_floor(m * (p - 1), 7);
-            m += 1;
-        }
-
-        // Non-partial upper bound term in `sequence_interval`.
-        let _ = div_floor(p, 7);
+        let _ = XZ3SFC::code_offset(q, k);
     }
 }
 

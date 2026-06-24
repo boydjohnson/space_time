@@ -375,3 +375,87 @@ mod tests {
         ));
     }
 }
+
+#[cfg(test)]
+mod range_query_tests {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    /// End-to-end property for the range engine over `Z2`: for any rectangular
+    /// query box on a small grid, and any bottom-out settings, `zranges` must be
+    ///
+    ///  * COMPLETE — every cell inside the box falls in some returned range, so a query
+    ///    never silently drops results, and
+    ///  * SOUND — every index inside a `CoveredRange` decodes back into the box
+    ///    (overlapping ranges are allowed to spill, covered ones are not).
+    ///
+    /// `max_recurse`/`max_ranges` are varied (including the aggressive values
+    /// that force early `bottom_out`) to confirm completeness survives the
+    /// coarsening.
+    #[quickcheck]
+    fn z2_zranges_complete_and_sound(
+        bits: u8,
+        a: u16,
+        b: u16,
+        c: u16,
+        d: u16,
+        max_recurse: Option<u8>,
+        max_ranges: Option<u8>,
+    ) -> bool {
+        // Grid side 2..=32 (powers of two so every z in `0..side*side` is a cell).
+        let n_bits: u32 = u32::from(bits % 5) + 1;
+        let side: u32 = 1 << n_bits;
+
+        let (col_min, col_max) = {
+            let (lo, hi) = (u32::from(a) % side, u32::from(c) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+        let (row_min, row_max) = {
+            let (lo, hi) = (u32::from(b) % side, u32::from(d) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+
+        let zbound = ZRange {
+            min: Z2::new(col_min, row_min).z(),
+            max: Z2::new(col_max, row_max).z(),
+        };
+
+        let max_recurse = max_recurse.map(|v| usize::from(v % 10)); // 0..=9
+        let max_ranges = max_ranges.map(|v| usize::from(v % 32) + 1); // 1..=32
+
+        // 64 is the precision the public `ranges()` entry points always pass.
+        let ranges = Z2::zranges::<Z2>(&[zbound], 64, max_ranges, max_recurse);
+
+        let cell_count = u64::from(side) * u64::from(side);
+
+        // Completeness.
+        for col in col_min..=col_max {
+            for row in row_min..=row_max {
+                let z = Z2::new(col, row).z();
+                if !ranges.iter().any(|rg| rg.lower() <= z && z <= rg.upper()) {
+                    return false;
+                }
+            }
+        }
+
+        // Soundness of covered ranges.
+        for rg in &ranges {
+            if rg.contained() {
+                // A sound covered range can hold at most `box_cells` (< grid
+                // cells) consecutive in-box indices; a larger span is unsound on
+                // its face and also guards against runaway enumeration on a bug.
+                if rg.upper().saturating_sub(rg.lower()) >= cell_count {
+                    return false;
+                }
+                for z in rg.lower()..=rg.upper() {
+                    let (col, row) = Z2::new_from_zorder(z).decode();
+                    if col < col_min || col > col_max || row < row_min || row > row_max {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
+    }
+}

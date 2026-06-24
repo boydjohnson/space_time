@@ -518,3 +518,99 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod range_query_tests {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    /// End-to-end property for the range engine over `Z3`: for any rectangular
+    /// (3-D) query box on a small grid, and any bottom-out settings, `zranges`
+    /// must be
+    ///
+    ///  * COMPLETE — every cell inside the box falls in some returned range, so a query
+    ///    never silently drops results, and
+    ///  * SOUND — every index inside a `CoveredRange` decodes back into the box
+    ///    (overlapping ranges are allowed to spill, covered ones are not).
+    ///
+    /// `max_recurse`/`max_ranges` are varied (including the aggressive values
+    /// that force early `bottom_out`) to confirm completeness survives the
+    /// coarsening.
+    #[quickcheck]
+    fn z3_zranges_complete_and_sound(
+        bits: u8,
+        coords: (u8, u8, u8, u8, u8, u8),
+        max_recurse: Option<u8>,
+        max_ranges: Option<u8>,
+    ) -> bool {
+        let (x0, y0, z0, x1, y1, z1) = coords;
+
+        // Grid side 2..=8 (powers of two; box volume stays <= 512 cells).
+        let n_bits: u32 = u32::from(bits % 3) + 1;
+        let side: u32 = 1 << n_bits;
+
+        let (col_min, col_max) = {
+            let (lo, hi) = (u32::from(x0) % side, u32::from(x1) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+        let (row_min, row_max) = {
+            let (lo, hi) = (u32::from(y0) % side, u32::from(y1) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+        let (dep_min, dep_max) = {
+            let (lo, hi) = (u32::from(z0) % side, u32::from(z1) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+
+        let zbound = ZRange {
+            min: Z3::new(col_min, row_min, dep_min).z,
+            max: Z3::new(col_max, row_max, dep_max).z,
+        };
+
+        let max_recurse = max_recurse.map(|v| usize::from(v % 10)); // 0..=9
+        let max_ranges = max_ranges.map(|v| usize::from(v % 32) + 1); // 1..=32
+
+        // 64 is the precision the public `ranges()` entry points always pass.
+        let ranges = <Z3 as ZN>::zranges::<Z3>(&[zbound], 64, max_ranges, max_recurse);
+
+        let cell_count = u64::from(side) * u64::from(side) * u64::from(side);
+
+        // Completeness.
+        for col in col_min..=col_max {
+            for row in row_min..=row_max {
+                for dep in dep_min..=dep_max {
+                    let z = Z3::new(col, row, dep).z;
+                    if !ranges.iter().any(|rg| rg.lower() <= z && z <= rg.upper()) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        // Soundness of covered ranges.
+        for rg in &ranges {
+            if rg.contained() {
+                // A sound covered range can hold at most `box_cells` (< grid
+                // cells) consecutive in-box indices; a larger span is unsound on
+                // its face and also guards against runaway enumeration on a bug.
+                if rg.upper().saturating_sub(rg.lower()) >= cell_count {
+                    return false;
+                }
+                for z in rg.lower()..=rg.upper() {
+                    let (col, row, dep) = Z3::new_from_raw(z).decode();
+                    if col < col_min
+                        || col > col_max
+                        || row < row_min
+                        || row > row_max
+                        || dep < dep_min
+                        || dep > dep_max
+                    {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
+    }
+}

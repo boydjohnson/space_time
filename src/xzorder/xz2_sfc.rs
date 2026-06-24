@@ -203,6 +203,16 @@ impl XZ2SFC {
         results
     }
 
+    /// Curve-code offset contributed by quadrant `q` (`0..=3`) at remaining
+    /// resolution `k`: the number of cells skipped by stepping past quadrants
+    /// `0..q` of a node whose subtree spans `k` more levels. Shared by
+    /// `sequence_code` and `sequence_interval` so the kani overflow proof
+    /// exercises the exact arithmetic used in production. Does not overflow for
+    /// `k <= MAX_G` (see `code_offset_doesnt_overflow`).
+    fn code_offset(q: u64, k: u32) -> u64 {
+        div_floor(q * (4_u64.pow(k) - 1), 3)
+    }
+
     fn sequence_code(&self, x: f64, y: f64, length: u32) -> u64 {
         let mut xmin = 0.0;
         let mut ymin = 0.0;
@@ -222,17 +232,17 @@ impl XZ2SFC {
                     ymax = y_center;
                 }
                 (false, true) => {
-                    cs += 1 + div_floor(4_u64.pow(self.g - i) - 1_u64, 3);
+                    cs += 1 + Self::code_offset(1, self.g - i);
                     xmin = x_center;
                     ymax = y_center;
                 }
                 (true, false) => {
-                    cs += 1 + div_floor(2 * (4_u64.pow(self.g - i) - 1_u64), 3);
+                    cs += 1 + Self::code_offset(2, self.g - i);
                     xmax = x_center;
                     ymin = y_center;
                 }
                 (false, false) => {
-                    cs += 1 + div_floor(3 * 4_u64.pow(self.g - i) - 1_u64, 3);
+                    cs += 1 + Self::code_offset(3, self.g - i);
                     xmin = x_center;
                     ymin = y_center;
                 }
@@ -287,7 +297,7 @@ impl XZ2SFC {
         let max = if partial {
             min
         } else {
-            min + div_floor(4_u64.pow(self.g - length + 1) - 1, 3)
+            min + Self::code_offset(1, self.g - length + 1)
         };
 
         (min, max)
@@ -385,29 +395,25 @@ impl XElement {
 mod kani_proofs {
     use super::*;
 
-    /// Under the `g <= MAX_G` bound enforced by the constructors, none of the
-    /// `4.pow`-based index terms in `sequence_code`/`sequence_interval` overflow
-    /// `u64`. The exponent `g - i` (with `i` in `0..length`, `length <= g`) and
-    /// the `sequence_interval` exponent `g - length + 1` both lie in `1..=g`, so
-    /// the proof ranges over every reachable exponent.
+    /// `XZ2SFC::code_offset` — the single arithmetic helper behind every
+    /// `sequence_code`/`sequence_interval` curve-code term — never overflows
+    /// `u64` under the `g <= MAX_G` bound enforced by the constructors. The
+    /// resolution argument `k` (`g - i` with `i` in `0..length <= g`, or
+    /// `g - length + 1`) lies in `1..=g`, and the quadrant `q` in `0..=3`, so
+    /// the proof ranges over every value reachable in production.
     #[kani::proof]
     #[kani::unwind(33)]
-    fn sequence_terms_dont_overflow() {
+    fn code_offset_doesnt_overflow() {
         let g: u32 = kani::any();
         kani::assume(g <= XZ2SFC::MAX_G);
 
-        let e: u32 = kani::any();
-        kani::assume(e >= 1 && e <= g);
+        let k: u32 = kani::any();
+        kani::assume(k >= 1 && k <= g);
 
-        // `4.pow(e)` itself must not overflow.
-        let p = 4_u64.pow(e);
+        let q: u64 = kani::any();
+        kani::assume(q <= 3);
 
-        // Per-quadrant increments accumulated in `sequence_code`.
-        let _ = div_floor(p - 1, 3);
-        let _ = div_floor(2 * (p - 1), 3);
-
-        // Non-partial upper bound term in `sequence_interval`.
-        let _ = div_floor(p, 3);
+        let _ = XZ2SFC::code_offset(q, k);
     }
 }
 
