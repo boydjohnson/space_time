@@ -127,17 +127,15 @@ pub trait ZN {
             let next = remaining.pop_front();
 
             match next {
-                Some(LEVEL_TERMINATOR) => {
-                    if !remaining.is_empty() {
-                        level += 1;
+                Some(LEVEL_TERMINATOR) if !remaining.is_empty() => {
+                    level += 1;
 
-                        if offset == 0 || level >= max_recurse {
-                            bottom_out(&mut ranges, &mut remaining);
-                        } else {
-                            remaining.push_back(LEVEL_TERMINATOR);
-                        }
-                        offset -= Self::DIMENSIONS;
+                    if offset == 0 || level >= max_recurse {
+                        bottom_out(&mut ranges, &mut remaining);
+                    } else {
+                        remaining.push_back(LEVEL_TERMINATOR);
                     }
+                    offset -= Self::DIMENSIONS;
                 }
                 Some((Some(min), _)) => {
                     let prefix = min;

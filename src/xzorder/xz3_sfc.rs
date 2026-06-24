@@ -179,11 +179,9 @@ impl XZ3SFC {
 
         while level < self.g && !remaining.is_empty() && ranges.len() < range_stop.into() {
             match remaining.pop_front() {
-                Some(LEVEL_TERMINATOR) => {
-                    if !remaining.is_empty() {
-                        level += 1;
-                        remaining.push_back(LEVEL_TERMINATOR);
-                    }
+                Some(LEVEL_TERMINATOR) if !remaining.is_empty() => {
+                    level += 1;
+                    remaining.push_back(LEVEL_TERMINATOR);
                 }
                 Some(Some(oct)) => {
                     self.check_value(&oct, level, query, &mut ranges, &mut remaining);
