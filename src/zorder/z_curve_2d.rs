@@ -148,7 +148,6 @@ impl ZCurve2D {
 mod tests {
     use super::*;
     use crate::SpaceFillingCurves;
-    use alloc::vec;
 
     #[test]
     fn test_produce_covering_ranges() {
