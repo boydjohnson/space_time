@@ -123,6 +123,132 @@ impl ZN for Z2 {
     }
 }
 
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    /// Splitting then combining a value within `MAX_MASK` is the identity, for
+    /// every valid input. Also proves the `try_into().expect(..)` in `combine`
+    /// never panics.
+    #[kani::proof]
+    fn split_combine_roundtrip() {
+        let x: u32 = kani::any();
+        kani::assume(x <= Z2::MAX_MASK as u32);
+        assert_eq!(Z2::combine(Z2::split(x)), x);
+    }
+
+    /// Encoding two dimensions into a `Z2` and decoding recovers the original
+    /// pair, for every valid input.
+    #[kani::proof]
+    fn encode_decode_roundtrip() {
+        let x: u32 = kani::any();
+        let y: u32 = kani::any();
+        kani::assume(x <= Z2::MAX_MASK as u32);
+        kani::assume(y <= Z2::MAX_MASK as u32);
+        assert_eq!(Z2::new(x, y).decode(), (x, y));
+    }
+
+    /// Build a `ZRange` bounding box from two ordered user-space corners.
+    fn box_from(x0: u32, y0: u32, x1: u32, y1: u32) -> ZRange {
+        ZRange {
+            min: Z2::new(x0, y0).z(),
+            max: Z2::new(x1, y1).z(),
+        }
+    }
+
+    /// Any user-space point inside a bounding box (built from two ordered
+    /// corners) is reported as contained by `Z2::contains`. This proves the
+    /// user-space containment semantics of the index-space predicate.
+    #[kani::proof]
+    fn point_in_box_is_contained() {
+        let x0: u32 = kani::any();
+        let y0: u32 = kani::any();
+        let x1: u32 = kani::any();
+        let y1: u32 = kani::any();
+        kani::assume(x0 <= x1 && x1 <= Z2::MAX_MASK as u32);
+        kani::assume(y0 <= y1 && y1 <= Z2::MAX_MASK as u32);
+
+        let px: u32 = kani::any();
+        let py: u32 = kani::any();
+        kani::assume(x0 <= px && px <= x1);
+        kani::assume(y0 <= py && py <= y1);
+
+        let range = box_from(x0, y0, x1, y1);
+        assert!(Z2::contains(range, Z2::new(px, py).z()));
+    }
+
+    /// For bounding boxes built from ordered corners, if `range` contains both
+    /// corners of `value` then `range` and `value` overlap. A containing range
+    /// must overlap.
+    #[kani::proof]
+    fn contains_value_implies_overlaps() {
+        let rx0: u32 = kani::any();
+        let ry0: u32 = kani::any();
+        let rx1: u32 = kani::any();
+        let ry1: u32 = kani::any();
+        kani::assume(rx0 <= rx1 && rx1 <= Z2::MAX_MASK as u32);
+        kani::assume(ry0 <= ry1 && ry1 <= Z2::MAX_MASK as u32);
+
+        let vx0: u32 = kani::any();
+        let vy0: u32 = kani::any();
+        let vx1: u32 = kani::any();
+        let vy1: u32 = kani::any();
+        kani::assume(vx0 <= vx1 && vx1 <= Z2::MAX_MASK as u32);
+        kani::assume(vy0 <= vy1 && vy1 <= Z2::MAX_MASK as u32);
+
+        let range = box_from(rx0, ry0, rx1, ry1);
+        let value = box_from(vx0, vy0, vx1, vy1);
+
+        kani::assume(Z2::contains_value(range, value));
+        assert!(Z2::overlaps(range, value));
+    }
+
+    /// `Z2::overlaps` is symmetric for every pair of index-space rectangles.
+    #[kani::proof]
+    fn overlaps_is_symmetric() {
+        let a_min: u64 = kani::any();
+        let a_max: u64 = kani::any();
+        let b_min: u64 = kani::any();
+        let b_max: u64 = kani::any();
+        let a = ZRange {
+            min: a_min,
+            max: a_max,
+        };
+        let b = ZRange {
+            min: b_min,
+            max: b_max,
+        };
+        assert_eq!(Z2::overlaps(a, b), Z2::overlaps(b, a));
+    }
+
+    /// A point is contained by a bounding box exactly when the box overlaps the
+    /// degenerate range made of just that point. Ties `contains` and `overlaps`
+    /// together.
+    #[kani::proof]
+    fn contains_matches_degenerate_overlap() {
+        let x0: u32 = kani::any();
+        let y0: u32 = kani::any();
+        let x1: u32 = kani::any();
+        let y1: u32 = kani::any();
+        kani::assume(x0 <= x1 && x1 <= Z2::MAX_MASK as u32);
+        kani::assume(y0 <= y1 && y1 <= Z2::MAX_MASK as u32);
+
+        let px: u32 = kani::any();
+        let py: u32 = kani::any();
+        kani::assume(px <= Z2::MAX_MASK as u32);
+        kani::assume(py <= Z2::MAX_MASK as u32);
+
+        let range = box_from(x0, y0, x1, y1);
+        let point = Z2::new(px, py).z();
+        let degenerate = ZRange {
+            min: point,
+            max: point,
+        };
+
+        assert_eq!(Z2::contains(range, point), Z2::overlaps(range, degenerate));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -247,5 +373,89 @@ mod tests {
                 max: Z2::new(2, 0).z()
             }
         ));
+    }
+}
+
+#[cfg(test)]
+mod range_query_tests {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    /// End-to-end property for the range engine over `Z2`: for any rectangular
+    /// query box on a small grid, and any bottom-out settings, `zranges` must be
+    ///
+    ///  * COMPLETE — every cell inside the box falls in some returned range, so a query
+    ///    never silently drops results, and
+    ///  * SOUND — every index inside a `CoveredRange` decodes back into the box
+    ///    (overlapping ranges are allowed to spill, covered ones are not).
+    ///
+    /// `max_recurse`/`max_ranges` are varied (including the aggressive values
+    /// that force early `bottom_out`) to confirm completeness survives the
+    /// coarsening.
+    #[quickcheck]
+    fn z2_zranges_complete_and_sound(
+        bits: u8,
+        a: u16,
+        b: u16,
+        c: u16,
+        d: u16,
+        max_recurse: Option<u8>,
+        max_ranges: Option<u8>,
+    ) -> bool {
+        // Grid side 2..=32 (powers of two so every z in `0..side*side` is a cell).
+        let n_bits: u32 = u32::from(bits % 5) + 1;
+        let side: u32 = 1 << n_bits;
+
+        let (col_min, col_max) = {
+            let (lo, hi) = (u32::from(a) % side, u32::from(c) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+        let (row_min, row_max) = {
+            let (lo, hi) = (u32::from(b) % side, u32::from(d) % side);
+            (lo.min(hi), lo.max(hi))
+        };
+
+        let zbound = ZRange {
+            min: Z2::new(col_min, row_min).z(),
+            max: Z2::new(col_max, row_max).z(),
+        };
+
+        let max_recurse = max_recurse.map(|v| usize::from(v % 10)); // 0..=9
+        let max_ranges = max_ranges.map(|v| usize::from(v % 32) + 1); // 1..=32
+
+        // 64 is the precision the public `ranges()` entry points always pass.
+        let ranges = Z2::zranges::<Z2>(&[zbound], 64, max_ranges, max_recurse);
+
+        let cell_count = u64::from(side) * u64::from(side);
+
+        // Completeness.
+        for col in col_min..=col_max {
+            for row in row_min..=row_max {
+                let z = Z2::new(col, row).z();
+                if !ranges.iter().any(|rg| rg.lower() <= z && z <= rg.upper()) {
+                    return false;
+                }
+            }
+        }
+
+        // Soundness of covered ranges.
+        for rg in &ranges {
+            if rg.contained() {
+                // A sound covered range can hold at most `box_cells` (< grid
+                // cells) consecutive in-box indices; a larger span is unsound on
+                // its face and also guards against runaway enumeration on a bug.
+                if rg.upper().saturating_sub(rg.lower()) >= cell_count {
+                    return false;
+                }
+                for z in rg.lower()..=rg.upper() {
+                    let (col, row) = Z2::new_from_zorder(z).decode();
+                    if col < col_min || col > col_max || row < row_min || row > row_max {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        true
     }
 }

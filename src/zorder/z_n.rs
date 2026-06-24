@@ -63,6 +63,17 @@ pub trait ZN {
     }
 
     /// Test whether range and value overlap. Considers User space.
+    ///
+    /// # Precondition
+    ///
+    /// Both `range` and `value` must be proper bounding boxes whose `min` and
+    /// `max` decode to user-space corners that are ordered in every dimension
+    /// (i.e. `min`'s coordinate is `<=` `max`'s coordinate per axis). The
+    /// Z-curve is not monotonic per dimension, so a `ZRange` with `min <= max`
+    /// as raw indices does not guarantee this; passing an unordered box can make
+    /// `overlaps` report no overlap when the boxes actually intersect. The range
+    /// constructors on the curve types (e.g. `Z2Curve::ranges`) always build
+    /// ordered boxes, so callers using those are safe.
     #[must_use]
     fn overlaps(range: ZRange, value: ZRange) -> bool;
 
@@ -116,17 +127,15 @@ pub trait ZN {
             let next = remaining.pop_front();
 
             match next {
-                Some(LEVEL_TERMINATOR) => {
-                    if !remaining.is_empty() {
-                        level += 1;
+                Some(LEVEL_TERMINATOR) if !remaining.is_empty() => {
+                    level += 1;
 
-                        if offset == 0 || level >= max_recurse {
-                            bottom_out(&mut ranges, &mut remaining);
-                        } else {
-                            remaining.push_back(LEVEL_TERMINATOR);
-                        }
-                        offset -= Self::DIMENSIONS;
+                    if offset == 0 || level >= max_recurse {
+                        bottom_out(&mut ranges, &mut remaining);
+                    } else {
+                        remaining.push_back(LEVEL_TERMINATOR);
                     }
+                    offset -= Self::DIMENSIONS;
                 }
                 Some((Some(min), _)) => {
                     let prefix = min;
@@ -163,7 +172,7 @@ pub trait ZN {
 
         for range in ranges {
             if let Some(cur) = current.take() {
-                if range.lower() <= cur.upper() + 1 {
+                if range.lower() <= cur.upper().saturating_add(1) {
                     let max = cur.upper().max(range.upper());
                     let min = cur.lower();
                     if cur.contained() && range.contained() {

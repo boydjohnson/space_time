@@ -35,9 +35,19 @@ pub struct XZ3SFC {
 const LEVEL_TERMINATOR: Option<XElement> = None;
 
 impl XZ3SFC {
+    /// Maximum supported resolution. Above this, the `7 * (8.pow(g - i) - 1)`
+    /// terms in `sequence_code` overflow `u64` (`7 * 8^21 > 2^64`).
+    pub const MAX_G: u32 = 20;
+
     /// Create an 3D extended z-order curve in unprojected coordinates.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `g > MAX_G` (20), the resolution above which the curve's
+    /// index arithmetic overflows `u64`.
     #[must_use]
     pub fn wgs84(g: u32, z_min: f64, z_max: f64) -> Self {
+        assert!(g <= Self::MAX_G, "resolution g must be <= {}", Self::MAX_G);
         XZ3SFC {
             g,
             x_min: -180.0,
@@ -50,6 +60,10 @@ impl XZ3SFC {
     }
 
     /// General constructor for XZ3SFC.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `g > MAX_G` (20).
     #[must_use]
     pub fn new(
         g: u32,
@@ -60,6 +74,7 @@ impl XZ3SFC {
         y_max: f64,
         z_max: f64,
     ) -> Self {
+        assert!(g <= Self::MAX_G, "resolution g must be <= {}", Self::MAX_G);
         XZ3SFC {
             g,
             x_min,
@@ -164,11 +179,9 @@ impl XZ3SFC {
 
         while level < self.g && !remaining.is_empty() && ranges.len() < range_stop.into() {
             match remaining.pop_front() {
-                Some(LEVEL_TERMINATOR) => {
-                    if !remaining.is_empty() {
-                        level += 1;
-                        remaining.push_back(LEVEL_TERMINATOR);
-                    }
+                Some(LEVEL_TERMINATOR) if !remaining.is_empty() => {
+                    level += 1;
+                    remaining.push_back(LEVEL_TERMINATOR);
                 }
                 Some(Some(oct)) => {
                     self.check_value(&oct, level, query, &mut ranges, &mut remaining);
@@ -193,7 +206,7 @@ impl XZ3SFC {
         let mut results = vec![];
         for range in ranges {
             if let Some(cur) = current {
-                if range.lower() <= cur.upper() + 1 {
+                if range.lower() <= cur.upper().saturating_add(1) {
                     let max = cur.upper().max(range.upper());
                     let min = cur.lower();
                     if cur.contained() && range.contained() {
@@ -273,6 +286,16 @@ impl XZ3SFC {
         )
     }
 
+    /// Curve-code offset contributed by octant `q` (`0..=7`) at remaining
+    /// resolution `k`: the number of cells skipped by stepping past octants
+    /// `0..q` of a node whose subtree spans `k` more levels. Shared by
+    /// `sequence_code` and `sequence_interval` so the kani overflow proof
+    /// exercises the exact arithmetic used in production. Does not overflow for
+    /// `k <= MAX_G` (see `code_offset_doesnt_overflow`).
+    fn code_offset(q: u64, k: u32) -> u64 {
+        div_floor(q * (8_u64.pow(k) - 1), 7)
+    }
+
     fn sequence_code(&self, x: f64, y: f64, z: f64, length: u32) -> u64 {
         let mut x_min = 0.0;
         let mut y_min = 0.0;
@@ -296,43 +319,43 @@ impl XZ3SFC {
                     z_max = z_center;
                 }
                 (false, true, true) => {
-                    cs += 1 + div_floor(8_u64.pow(self.g - i) - 1, 7);
+                    cs += 1 + Self::code_offset(1, self.g - i);
                     x_min = x_center;
                     y_max = y_center;
                     z_max = z_center;
                 }
                 (true, false, true) => {
-                    cs += 1 + div_floor(2 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(2, self.g - i);
                     x_max = x_center;
                     y_min = y_center;
                     z_max = z_center;
                 }
                 (false, false, true) => {
-                    cs += 1 + div_floor(3 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(3, self.g - i);
                     x_min = x_center;
                     y_min = y_center;
                     z_max = z_center;
                 }
                 (true, true, false) => {
-                    cs += 1 + div_floor(4 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(4, self.g - i);
                     x_max = x_center;
                     y_max = y_center;
                     z_min = z_center;
                 }
                 (false, true, false) => {
-                    cs += 1 + div_floor(5 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(5, self.g - i);
                     x_min = x_center;
                     y_max = y_center;
                     z_min = z_center;
                 }
                 (true, false, false) => {
-                    cs += 1 + div_floor(6 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(6, self.g - i);
                     x_max = x_center;
                     y_min = y_center;
                     z_min = z_center;
                 }
                 (false, false, false) => {
-                    cs += 1 + div_floor(7 * (8_u64.pow(self.g - i) - 1), 7);
+                    cs += 1 + Self::code_offset(7, self.g - i);
                     x_min = x_center;
                     y_min = y_center;
                     z_min = z_center;
@@ -348,7 +371,7 @@ impl XZ3SFC {
         let max = if partial {
             min
         } else {
-            min + div_floor(8_u64.pow(self.g - length + 1), 7)
+            min + Self::code_offset(1, self.g - length + 1)
         };
 
         (min, max)
@@ -513,6 +536,32 @@ impl XElement {
     }
 }
 
+#[cfg(kani)]
+mod kani_proofs {
+    use super::*;
+
+    /// `XZ3SFC::code_offset` — the single arithmetic helper behind every
+    /// `sequence_code`/`sequence_interval` curve-code term — never overflows
+    /// `u64` under the `g <= MAX_G` bound enforced by the constructors. The
+    /// resolution argument `k` (`g - i` with `i` in `0..length <= g`, or
+    /// `g - length + 1`) lies in `1..=g`, and the octant `q` in `0..=7`, so the
+    /// proof ranges over every value reachable in production.
+    #[kani::proof]
+    #[kani::unwind(33)]
+    fn code_offset_doesnt_overflow() {
+        let g: u32 = kani::any();
+        kani::assume(g <= XZ3SFC::MAX_G);
+
+        let k: u32 = kani::any();
+        kani::assume(k >= 1 && k <= g);
+
+        let q: u64 = kani::any();
+        kani::assume(q <= 7);
+
+        let _ = XZ3SFC::code_offset(q, k);
+    }
+}
+
 #[cfg(test)]
 mod tests {
 
@@ -593,5 +642,123 @@ mod tests {
         assert_eq!(ranges.first().map(|r| r.lower()), Some(1));
 
         assert_eq!(ranges.last().map(|r| r.upper()), Some(3_682_578_823));
+    }
+}
+
+#[cfg(test)]
+mod range_query_tests {
+    use super::*;
+    use quickcheck_macros::quickcheck;
+
+    /// `index` must not panic on the float→int cast edge cases: a degenerate
+    /// point box (`max_dim == 0`, where `log(0.5)` is `+inf` and the `el_1`
+    /// cast saturates to `i32::MAX`), the full-extent box (`max_dim == 1`), and
+    /// a sub-cell box.
+    #[test]
+    fn index_handles_cast_edge_cases() {
+        let sfc = XZ3SFC::wgs84(12, 0.0, 100.0);
+        let _ = sfc.index(10.0, 20.0, 5.0, 10.0, 20.0, 5.0); // point box -> length = g
+        let _ = sfc.index(-180.0, -90.0, 0.0, 180.0, 90.0, 100.0); // full extent
+        let _ = sfc.index(-179.999_9, -89.999_9, 0.0, -179.999_8, -89.999_8, 0.01);
+    }
+
+    /// Every `(code, element)` in the octree down to depth `g`.
+    fn enumerate(sfc: &XZ3SFC) -> Vec<(u64, XElement)> {
+        let mut out = Vec::new();
+        let mut stack: Vec<(XElement, u32)> = XElement::level_one_elements()
+            .into_iter()
+            .map(|e| (e, 1))
+            .collect();
+        while let Some((e, level)) = stack.pop() {
+            let code = sfc.sequence_code(e.x_min, e.y_min, e.z_min, level);
+            if level < sfc.g {
+                for c in e.children() {
+                    stack.push((c, level + 1));
+                }
+            }
+            out.push((code, e));
+        }
+        out
+    }
+
+    /// End-to-end property for the XZ3 range engine. For any query window and
+    /// any `range_stop` (including the small values that force early
+    /// `bottom_out`), `ranges_impl` must be
+    ///
+    ///  * COMPLETE — every element whose (enlarged) extent overlaps the query is covered
+    ///    by some returned range, so no candidate object is missed, and
+    ///  * SOUND — every element whose code lands in a `CoveredRange` is fully contained
+    ///    in the query (overlapping ranges may spill, covered ones may not).
+    ///
+    /// Driven in normalized `[0, 1]` space with dyadic query coordinates so all
+    /// element-boundary comparisons are exact in `f64`.
+    #[quickcheck]
+    fn xz3_ranges_complete_and_sound(
+        g_seed: u8,
+        coords: (u8, u8, u8, u8, u8, u8),
+        range_stop: u8,
+    ) -> bool {
+        let g = u32::from(g_seed % 3) + 1; // 1..=3 (octree stays small)
+        let sfc = XZ3SFC::wgs84(g, 0.0, 1.0);
+
+        let denom = f64::from(1u32 << g); // 2^g
+        let to_unit = |v: u8| f64::from(u32::from(v) % ((1u32 << g) + 1)) / denom;
+        let (x0, y0, z0, x1, y1, z1) = coords;
+        let (mut x_min, mut x_max) = (to_unit(x0), to_unit(x1));
+        if x_min > x_max {
+            core::mem::swap(&mut x_min, &mut x_max);
+        }
+        let (mut y_min, mut y_max) = (to_unit(y0), to_unit(y1));
+        if y_min > y_max {
+            core::mem::swap(&mut y_min, &mut y_max);
+        }
+        let (mut z_min, mut z_max) = (to_unit(z0), to_unit(z1));
+        if z_min > z_max {
+            core::mem::swap(&mut z_min, &mut z_max);
+        }
+        let window = QueryWindow {
+            x_min,
+            y_min,
+            z_min,
+            x_max,
+            y_max,
+            z_max,
+        };
+
+        // `0` means "no limit"; otherwise an aggressive cap that forces bottom-out.
+        let range_stop = if range_stop == 0 {
+            u16::MAX
+        } else {
+            u16::from(range_stop)
+        };
+        let ranges = sfc.ranges_impl(core::slice::from_ref(&window), range_stop);
+
+        let elements = enumerate(&sfc);
+
+        // Completeness.
+        for (code, e) in &elements {
+            if e.is_overlapped(&window)
+                && !ranges
+                    .iter()
+                    .any(|r| r.lower() <= *code && *code <= r.upper())
+            {
+                return false;
+            }
+        }
+
+        // Soundness of covered ranges.
+        for (code, e) in &elements {
+            for r in &ranges {
+                if r.contained()
+                    && r.lower() <= *code
+                    && *code <= r.upper()
+                    && !e.is_contained(&window)
+                {
+                    return false;
+                }
+            }
+        }
+
+        true
     }
 }
