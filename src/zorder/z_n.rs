@@ -174,7 +174,7 @@ pub trait ZN {
 
         for range in ranges {
             if let Some(cur) = current.take() {
-                if range.lower() <= cur.upper() + 1 {
+                if range.lower() <= cur.upper().saturating_add(1) {
                     let max = cur.upper().max(range.upper());
                     let min = cur.lower();
                     if cur.contained() && range.contained() {

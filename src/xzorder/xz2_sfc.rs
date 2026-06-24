@@ -179,7 +179,7 @@ impl XZ2SFC {
 
         for range in ranges {
             if let Some(cur) = current {
-                if range.lower() <= cur.upper() + 1 {
+                if range.lower() <= cur.upper().saturating_add(1) {
                     let max = cur.upper().max(range.upper());
                     let min = cur.lower();
                     if cur.contained() && range.contained() {
@@ -492,6 +492,18 @@ mod tests {
 mod range_query_tests {
     use super::*;
     use quickcheck_macros::quickcheck;
+
+    /// `index` must not panic on the float→int cast edge cases: a degenerate
+    /// point box (`max_dim == 0`, where `log(0.5)` is `+inf` and the `el_1`
+    /// cast saturates to `i32::MAX`), the full-extent box (`max_dim == 1`), and
+    /// a sub-cell box.
+    #[test]
+    fn index_handles_cast_edge_cases() {
+        let sfc = XZ2SFC::wgs84(12);
+        let _ = sfc.index(10.0, 20.0, 10.0, 20.0); // point box -> length = g
+        let _ = sfc.index(-180.0, -90.0, 180.0, 90.0); // full extent -> el_1 == 0
+        let _ = sfc.index(-179.999_9, -89.999_9, -179.999_8, -89.999_8);
+    }
 
     /// Every `(code, element)` in the quadtree down to depth `g`.
     fn enumerate(sfc: &XZ2SFC) -> Vec<(u64, XElement)> {
