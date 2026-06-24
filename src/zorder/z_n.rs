@@ -171,7 +171,7 @@ pub trait ZN {
         let mut results = Vec::new();
 
         for range in ranges {
-            if let Some(cur) = current.take() {
+            match current.take() { Some(cur) => {
                 if range.lower() <= cur.upper().saturating_add(1) {
                     let max = cur.upper().max(range.upper());
                     let min = cur.lower();
@@ -184,9 +184,9 @@ pub trait ZN {
                     results.push(cur);
                     current = Some(range);
                 }
-            } else {
+            } _ => {
                 current = Some(range);
-            }
+            }}
         }
         if let Some(cur) = current {
             results.push(cur);
