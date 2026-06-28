@@ -148,6 +148,65 @@ impl ZCurve2D {
 mod tests {
     use super::*;
     use crate::SpaceFillingCurves;
+    use quickcheck_macros::quickcheck;
+
+    /// Point-curve analogue of the XZ `index_in_ranges_when_overlaps` contract:
+    /// a point is stored under `index(point)`, and a bbox query returns
+    /// `ranges(box)`. COMPLETENESS — if the point's grid cell falls inside the
+    /// query box's grid rectangle, then `index(point)` must land in one of the
+    /// returned ranges, for ANY recursion depth (the `MaxRecurse` hint is the
+    /// z-order analogue of XZ's `max_ranges` cap). Ground truth is taken in the
+    /// curve's own (col, row) grid so the comparison is exact, regardless of
+    /// where the float coordinates land within a cell.
+    #[quickcheck]
+    fn zcurve2d_index_in_ranges_when_point_in_box(
+        res_seed: u8,
+        point: (u16, u16),
+        bbox: (u16, u16, u16, u16),
+        recurse: u8,
+    ) -> quickcheck::TestResult {
+        let resolution = 1u32 << (u32::from(res_seed % 10) + 1); // 2..=1024
+        let curve = ZCurve2D::new(resolution, -180.0, -90.0, 180.0, 90.0);
+
+        let to_x = |v: u16| -180.0 + f64::from(v) / f64::from(u16::MAX) * 360.0;
+        let to_y = |v: u16| -90.0 + f64::from(v) / f64::from(u16::MAX) * 180.0;
+
+        let (px, py) = (to_x(point.0), to_y(point.1));
+        let (mut qxmin, mut qxmax) = (to_x(bbox.0), to_x(bbox.2));
+        if qxmin > qxmax {
+            core::mem::swap(&mut qxmin, &mut qxmax);
+        }
+        let (mut qymin, mut qymax) = (to_y(bbox.1), to_y(bbox.3));
+        if qymin > qymax {
+            core::mem::swap(&mut qymin, &mut qymax);
+        }
+
+        // Ground truth in grid space, mirroring how `ranges` builds its corners:
+        // col from x, row from y_max (rows increase downward).
+        let pcol = curve.map_to_col(px);
+        let prow = curve.map_to_row(py);
+        let col_min = curve.map_to_col(qxmin);
+        let col_max = curve.map_to_col(qxmax);
+        let row_min = curve.map_to_row(qymax);
+        let row_max = curve.map_to_row(qymin);
+        let in_box = pcol >= col_min && pcol <= col_max && prow >= row_min && prow <= row_max;
+        if !in_box {
+            return quickcheck::TestResult::discard();
+        }
+
+        let index = curve.index(px, py);
+        let hints = if recurse == 0 {
+            Vec::new()
+        } else {
+            alloc::vec![RangeComputeHints::MaxRecurse(usize::from(recurse))]
+        };
+        let ranges = curve.ranges(qxmin, qymin, qxmax, qymax, &hints);
+
+        let covered = ranges
+            .iter()
+            .any(|r| r.lower() <= index && index <= r.upper());
+        quickcheck::TestResult::from_bool(covered)
+    }
 
     #[test]
     fn test_produce_covering_ranges() {
