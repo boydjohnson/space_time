@@ -422,6 +422,72 @@ mod kani_proofs {
 mod tests {
 
     use super::*;
+    use quickcheck_macros::quickcheck;
+
+    /// Space-time point-curve analogue of the XZ `index_in_ranges_when_overlaps`
+    /// contract: a point is stored under `index(x, y, t)`, and a box+time query
+    /// returns `ranges(...)`. COMPLETENESS — if the point's grid cell falls
+    /// inside the query's (col, row, depth) rectangle, then `index(point)` must
+    /// land in one of the returned ranges, for ANY recursion depth (`MaxRecurse`
+    /// is the z-order analogue of XZ's `max_ranges` cap). Ground truth is taken
+    /// in the curve's own grid so the comparison is exact.
+    #[quickcheck]
+    fn zcurve3d_index_in_ranges_when_point_in_box(
+        g_seed: u8,
+        point: (u16, u16, u16),
+        bbox: (u16, u16, u16, u16),
+        time: (u16, u16),
+        recurse: u8,
+    ) -> quickcheck::TestResult {
+        let g = 1u32 << (u32::from(g_seed % 10) + 1); // 2..=1024
+        let z_max = 1000.0;
+        let curve = ZCurve3D::new(g, -180.0, -90.0, 180.0, 90.0, z_max);
+
+        let to_x = |v: u16| -180.0 + f64::from(v) / f64::from(u16::MAX) * 360.0;
+        let to_y = |v: u16| -90.0 + f64::from(v) / f64::from(u16::MAX) * 180.0;
+        let to_t = |v: u16| f64::from(v) / f64::from(u16::MAX) * z_max;
+
+        let (px, py, pt) = (to_x(point.0), to_y(point.1), to_t(point.2));
+        let (mut qxmin, mut qxmax) = (to_x(bbox.0), to_x(bbox.2));
+        if qxmin > qxmax {
+            core::mem::swap(&mut qxmin, &mut qxmax);
+        }
+        let (mut qymin, mut qymax) = (to_y(bbox.1), to_y(bbox.3));
+        if qymin > qymax {
+            core::mem::swap(&mut qymin, &mut qymax);
+        }
+        let (mut qtmin, mut qtmax) = (to_t(time.0), to_t(time.1));
+        if qtmin > qtmax {
+            core::mem::swap(&mut qtmin, &mut qtmax);
+        }
+
+        // Ground truth in grid space, mirroring how `ranges` builds its corners.
+        let pcol = curve.map_to_col(px);
+        let prow = curve.map_to_row(py);
+        let pdepth = curve.time_to_depth(pt);
+        let in_box = pcol >= curve.map_to_col(qxmin)
+            && pcol <= curve.map_to_col(qxmax)
+            && prow >= curve.map_to_row(qymax)
+            && prow <= curve.map_to_row(qymin)
+            && pdepth >= curve.time_to_depth(qtmin)
+            && pdepth <= curve.time_to_depth(qtmax);
+        if !in_box {
+            return quickcheck::TestResult::discard();
+        }
+
+        let index = curve.index(px, py, pt);
+        let hints = if recurse == 0 {
+            Vec::new()
+        } else {
+            alloc::vec![RangeComputeHints::MaxRecurse(usize::from(recurse))]
+        };
+        let ranges = curve.ranges(qxmin, qymin, qxmax, qymax, qtmin, qtmax, &hints);
+
+        let covered = ranges
+            .iter()
+            .any(|r| r.lower() <= index && index <= r.upper());
+        quickcheck::TestResult::from_bool(covered)
+    }
 
     #[test]
     fn test_encode() {

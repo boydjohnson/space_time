@@ -765,4 +765,78 @@ mod range_query_tests {
 
         true
     }
+
+    /// Real-world SFC query contract (the one `osmflat` relies on, and the one
+    /// the `enumerate`-based test above does NOT exercise): a feature is stored
+    /// under the single code `index(feature_box)`, and a bbox query returns
+    /// `ranges(query_box)`. The contract is COMPLETENESS — if the feature box
+    /// geometrically overlaps the query box, then `index(feature)` must land in
+    /// one of the returned ranges, or the query silently drops a true hit.
+    ///
+    /// This is the 3D analogue of `xz2_index_in_ranges_when_overlaps`. The XZ2
+    /// version of this test surfaced a copy-paste bug in `XZ2SFC::index` (its
+    /// fit predicate checked the x-extent twice and never the y-extent), which
+    /// assigned boundary-spanning features to an element too fine to contain
+    /// them so queries missed them. `XZ3SFC::index` checks x, y, and z, so this
+    /// guards against the same class of regression here.
+    ///
+    /// `cap == 0` maps to `max_ranges = None` (full refinement). Coordinates use
+    /// denominator 255 (not a power of two) so they fall *between* element
+    /// boundaries.
+    #[quickcheck]
+    fn xz3_index_in_ranges_when_overlaps(
+        feat: (u8, u8, u8, u8, u8, u8),
+        query: (u8, u8, u8, u8, u8, u8),
+        cap: u8,
+    ) -> quickcheck::TestResult {
+        let sfc = XZ3SFC::new(8, 0.0, 0.0, 0.0, 1.0, 1.0, 1.0);
+        let to = |v: u8| f64::from(v) / 255.0;
+        let mk = |(a, b, c, d, e, f): (u8, u8, u8, u8, u8, u8)| {
+            let (mut xmin, mut xmax) = (to(a), to(d));
+            if xmin > xmax {
+                core::mem::swap(&mut xmin, &mut xmax);
+            }
+            let (mut ymin, mut ymax) = (to(b), to(e));
+            if ymin > ymax {
+                core::mem::swap(&mut ymin, &mut ymax);
+            }
+            let (mut zmin, mut zmax) = (to(c), to(f));
+            if zmin > zmax {
+                core::mem::swap(&mut zmin, &mut zmax);
+            }
+            (xmin, ymin, zmin, xmax, ymax, zmax)
+        };
+        let (fxmin, fymin, fzmin, fxmax, fymax, fzmax) = mk(feat);
+        let (qxmin, qymin, qzmin, qxmax, qymax, qzmax) = mk(query);
+
+        // Require positive-volume boxes (real features/queries, not degenerate).
+        if fxmin == fxmax
+            || fymin == fymax
+            || fzmin == fzmax
+            || qxmin == qxmax
+            || qymin == qymax
+            || qzmin == qzmax
+        {
+            return quickcheck::TestResult::discard();
+        }
+        // Ground truth: do the box INTERIORS overlap (strict, not mere touch)?
+        let overlap = fxmin < qxmax
+            && qxmin < fxmax
+            && fymin < qymax
+            && qymin < fymax
+            && fzmin < qzmax
+            && qzmin < fzmax;
+        if !overlap {
+            return quickcheck::TestResult::discard();
+        }
+
+        let code = sfc.index(fxmin, fymin, fzmin, fxmax, fymax, fzmax);
+        let max_ranges = if cap == 0 { None } else { Some(u16::from(cap)) };
+        let ranges = sfc.ranges(qxmin, qymin, qzmin, qxmax, qymax, qzmax, max_ranges);
+
+        let covered = ranges
+            .iter()
+            .any(|r| r.lower() <= code && code <= r.upper());
+        quickcheck::TestResult::from_bool(covered)
+    }
 }
